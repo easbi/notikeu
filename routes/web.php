@@ -1,6 +1,8 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\PembayaranController; 
+use App\Http\Controllers\RefpembayaranController; 
 
 /*
 |--------------------------------------------------------------------------
@@ -18,4 +20,5 @@ Route::get('/', function () {
 });
 
 
-Route::resource('pembayaran', 'PembayaranController');
+Route::resource('pembayaran', PembayaranController::class);
+Route::resource('refpembayaran', RefpembayaranController::class);

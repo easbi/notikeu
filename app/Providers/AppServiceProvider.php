@@ -6,6 +6,8 @@ use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
+    protected $namespace = 'App\\Http\\Controllers';
+    
     /**
      * Register any application services.
      *
