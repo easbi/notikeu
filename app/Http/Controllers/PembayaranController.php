@@ -88,7 +88,7 @@ class PembayaranController extends Controller
 
         $token = "sfkCEvboXrecQAZDMXm2m9jt5ptU3agwZTyUpxoCWU1U7gCmie";
         $phone = DB::table('pegawai')->where('id', $request->id_pegawai)->select('no_hp')->first()->no_hp;
-
+        $timestamp = date('d-m-y h:i:s');
         $message = 
 "*Notifikasi {$pembayaran->nama_pembayaran} Bulan {$pembayaran->bulan} Tahun {$pembayaran->tahun}*.
 Nama Pegawai : *{$pembayaran->fullname}* 
@@ -98,7 +98,7 @@ Potongan : Rp.{$request->potongan}
  -----------
 Jumlah yang di Bayarkan : *Rp.{$request->jumlah_bayar}* ke nomor rekening *{$pembayaran->no_rek}*. 
 
-_Pesan ini dikirimkan oleh *Sistem Notifikasi Keuangan* BPS Kota Padang Panjang Pada waktu XXXX_";
+_Pesan ini dikirimkan oleh *Sistem Notifikasi Keuangan* BPS Kota Padang Panjang Pada waktu {$timestamp}";
 
         $curl = curl_init();
         curl_setopt_array($curl, array(
