@@ -81,7 +81,7 @@ class PembayaranController extends Controller
             ->where('id_pembayaran', $request->id_pembayaran)
             ->join('pegawai', 'transaksi_pembayaran.id_pegawai','=', 'pegawai.id')
             ->join('referensi_pembayaran', 'referensi_pembayaran.id','=', 'transaksi_pembayaran.id_pembayaran')
-            ->select('transaksi_pembayaran.*', 'pegawai.fullname', 'referensi_pembayaran.nama_pembayaran')
+            ->select('transaksi_pembayaran.*', 'pegawai.fullname', 'pegawai.no_rek', 'referensi_pembayaran.nama_pembayaran', 'referensi_pembayaran.bulan', 'referensi_pembayaran.tahun')
             ->first();
         
         // dd($pembayaran->nama_pembayaran);
@@ -90,16 +90,15 @@ class PembayaranController extends Controller
         $phone = DB::table('pegawai')->where('id', $request->id_pegawai)->select('no_hp')->first()->no_hp;
 
         $message = 
-        "
-        *Notifikasi {$pembayaran->nama_pembayaran}*.
-        Nama Pegawai : *{$request->id_pegawai}* 
-        Bersih : {$request->bersih} 
-        Potongan : {$request->potongan} 
-        -----------
-        Jumlah yang di Bayarkan : {$request->jumlah_bayar} ke nomor rekening xxx. 
+"*Notifikasi {$pembayaran->nama_pembayaran} Bulan {$pembayaran->bulan} Tahun {$pembayaran->tahun}*.
+Nama Pegawai : *{$pembayaran->fullname}* 
 
-        _Pesan ini dikirimkan oleh Sistem Notifikasi Keuangan BPS Kota Padang Panjang Pada waktu XXXX_
-        ";
+Bersih : Rp.{$request->bersih} 
+Potongan : Rp.{$request->potongan} 
+ -----------
+Jumlah yang di Bayarkan : *Rp.{$request->jumlah_bayar}* ke nomor rekening *{$pembayaran->no_rek}*. 
+
+_Pesan ini dikirimkan oleh *Sistem Notifikasi Keuangan* BPS Kota Padang Panjang Pada waktu XXXX_";
 
         $curl = curl_init();
         curl_setopt_array($curl, array(
