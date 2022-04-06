@@ -14,14 +14,14 @@
                     <div class="col-sm-6">
                         <ol class="breadcrumb float-sm-right">
                             <li class="breadcrumb-item"><a href="#">Home</a></li>
-                            <li class="breadcrumb-item active">Jenis Pembayaran</li>
+                            <li class="breadcrumb-item active">Transaksi Pembayaran</li>
                         </ol>
                     </div><!-- /.col -->
                 </div><!-- /.row -->
                 <div class="row mb-2">
                     <div class="col-sm-6"></div>
                     <div class="col-sm-6">
-                        <a href="{{ url('/refpembayaran/create') }}" class="btn btn-primary float-sm-right">Input Jenis Pembayaran</a>
+                        <a href="{{ url('/pembayaran/create') }}" class="btn btn-primary float-sm-right">Input Transaksi Pembayaran</a>
                     </div>    
                 </div>
             </div><!-- /.container-fluid -->
@@ -43,25 +43,27 @@
                             <thead>
                                 <tr>
                                     <th class="text-center">No</th>
-                                    <th>Nama Pembayaran</th>
-                                    <th>Bulan</th>
-                                    <th>Tahun</th>
-                                    <th>Berkas</th>
+                                    <th>Jenis Pembayaran</th>
+                                    <th>Nama Pegawai</th>
+                                    <th>Bersih</th>
+                                    <th>Potongan</th>
+                                    <th>Jumlah Bayar</th>
                                     <th class="text-center">Aksi</th>
                             </tr>    
                             </thead>
                             <tbody>
-                                @foreach ($refpe as $rp)
+                                @foreach ($pembayaran as $rp)
                                 <tr>
                                     <td class="text-center">{{ ++$i }}</td>
                                     <td>{{ $rp->nama_pembayaran }}</td>
-                                    <td>{{ $rp->bulan }}</td>
-                                    <td>{{ $rp->tahun }}</td>
-                                    <td><a class="btn btn-primary btn-sm" href="">berkas</a></td>
+                                    <td>{{ $rp->fullname }}</td>
+                                    <td>{{ $rp->bersih }}</td>
+                                    <td>{{ $rp->potongan }}</td>
+                                    <td>{{ $rp->jumlah_bayar }}</td>
                                     <td class="text-center">
-                                        <form action="{{route('refpembayaran.destroy',$rp->id)}}" method="POST">
+                                        <form action="{{route('pembayaran.destroy',$rp->id)}}" method="POST">
                                             
-                                            <a class="btn btn-primary btn-sm" href="{{ route('refpembayaran.edit',$rp->id) }}">Edit</a>
+                                            <a class="btn btn-primary btn-sm" href="{{ route('pembayaran.edit',$rp->id) }}">Edit</a>
                                             
                                             @csrf
                                             @method('DELETE')

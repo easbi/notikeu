@@ -16,8 +16,8 @@ class RefpembayaranController extends Controller
     public function index()
     {
         $refpe = DB::table('referensi_pembayaran')->get();
-        dd($refpe);
-        // return view('refpembayaran.index', compact('refpe'))->with('i', (request()->input('page', 1) - 1) * 5);;
+        // dd($refpe);
+        return view('ref_pembayaran.index', compact('refpe'))->with('i', (request()->input('page', 1) - 1) * 5);;
     }
 
     /**
@@ -68,9 +68,10 @@ class RefpembayaranController extends Controller
      * @param  \App\Models\Refpembayaran  $refpembayaran
      * @return \Illuminate\Http\Response
      */
-    public function edit(Refpembayaran $refpembayaran)
+    public function edit($id)
     {
-        //
+        $jenispembayaran = DB::table('referensi_pembayaran')->find($id);
+        return view('ref_pembayaran.edit', compact('jenispembayaran'));
     }
 
     /**
@@ -80,9 +81,25 @@ class RefpembayaranController extends Controller
      * @param  \App\Models\Refpembayaran  $refpembayaran
      * @return \Illuminate\Http\Response
      */
-    public function update(Request $request, Refpembayaran $refpembayaran)
+    public function update(Request $request, $id)
     {
-        //
+        /// membuat validasi 
+        $request->validate([
+            'nama_pembayaran' => 'required',
+            'bulan' => 'required',
+            'tahun' => 'required',
+        ]);
+
+        $jenispembayaran = Refpembayaran::find($id);
+        $jenispembayaran->nama_pembayaran = $request->nama_pembayaran;
+        $jenispembayaran->bulan = $request->bulan;
+        $jenispembayaran->tahun = $request->tahun;
+        $jenispembayaran->updated_at = date("Y-m-d H:i:s"); 
+        $jenispembayaran->save();
+
+        // setelah berhasil mengubah data
+        return redirect()->route('refpembayaran.index')
+                        ->with('success', 'Data updated successfully');
     }
 
     /**
@@ -91,8 +108,13 @@ class RefpembayaranController extends Controller
      * @param  \App\Models\Refpembayaran  $refpembayaran
      * @return \Illuminate\Http\Response
      */
-    public function destroy(Refpembayaran $refpembayaran)
+    public function destroy($id)
     {
-        //
+        //Hapus Data
+        $jenispembayaran = Refpembayaran::find($id); 
+        $jenispembayaran->delete();
+
+        // setelah berhasil hapus
+        return redirect('/refpembayaran');
     }
 }
