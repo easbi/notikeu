@@ -83,7 +83,7 @@
           </li>
           <li class="nav-header">Data Transaksi Pembayaran</li>         
           <li class="nav-item">
-            <a href="{{ url('/pendaftaran')}}" class="nav-link">
+            <a href="{{ url('/pembayaran/create')}}" class="nav-link">
               <i class="nav-icon fas fa-table"></i>
               <p>
                 Input Data
@@ -91,7 +91,7 @@
             </a>
           </li>
           <li class="nav-item">
-            <a href="{{ url('/pendaftaran/indexterpilih')}}" class="nav-link">
+            <a href="{{ url('/pembayaran')}}" class="nav-link">
               <i class="nav-icon fas fa-table"></i>
               <p>
                 Rekapitulasi
@@ -100,7 +100,7 @@
           </li>
           <li class="nav-header">Data Jenis Pembayaran</li>         
           <li class="nav-item">
-            <a href="{{ url('/pendaftaran')}}" class="nav-link">
+            <a href="{{ url('/refpembayaran/create')}}" class="nav-link">
               <i class="nav-icon fas fa-table"></i>
               <p>
                 Input Data
@@ -108,7 +108,7 @@
             </a>
           </li>
           <li class="nav-item">
-            <a href="{{ url('/pendaftaran/indexterpilih')}}" class="nav-link">
+            <a href="{{ url('/refpembayaran')}}" class="nav-link">
               <i class="nav-icon fas fa-table"></i>
               <p>
                 Rekapitulasi

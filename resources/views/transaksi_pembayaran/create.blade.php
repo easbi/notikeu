@@ -1,6 +1,7 @@
 @extends('template')
  
 @section('content')
+
 <!-- Content Wrapper. Contains page content -->
     <div class="content-wrapper">
         <!-- Content Header (Page header) -->
@@ -65,16 +66,16 @@
                                         </select>
                                     </div>
                                     <div class="form-group">
-                                        <strong><label>Nominal Bersih :</label></strong>
-                                        <input type="text" name="bersih" class="form-control" placeholder="10000">
+                                        <strong><label>Nominal Kotor :</label></strong>
+                                        <input type="text" id="rupiah1" name="bersih" class="form-control" placeholder="10000">
                                     </div>
                                     <div class="form-group">
                                         <strong><label>Nominal Potongan :</label></strong>
-                                        <input type="text" name="potongan" class="form-control" placeholder="10000">
+                                        <input type="text" id="rupiah2" name="potongan" class="form-control" placeholder="10000">
                                     </div>  
                                     <div class="form-group">
                                         <strong><label>Nominal Yang Dibayarkan :</label></strong>
-                                        <input type="text" name="jumlah_bayar" class="form-control" placeholder="10000">
+                                        <input type="text" id="rupiah3" name="jumlah_bayar" class="form-control" placeholder="10000">
                                     </div>
                                 </div>
                                 <div class="card-footer">
@@ -87,4 +88,41 @@
             </div>
         </div>
     </div>
+
+    <script type="text/javascript">     
+        var rupiah1 = document.getElementById('rupiah1');
+        rupiah1.addEventListener('keyup', function(e){
+            // tambahkan 'Rp.' pada saat form di ketik
+            // gunakan fungsi formatRupiah() untuk mengubah angka yang di ketik menjadi format angka
+            rupiah1.value = formatRupiah(this.value, 'Rp. ');
+        });
+
+        var rupiah2 = document.getElementById('rupiah2');
+        rupiah2.addEventListener('keyup', function(e){
+            rupiah2.value = formatRupiah(this.value, 'Rp. ');
+        });
+
+        var rupiah3 = document.getElementById('rupiah3');
+        rupiah3.addEventListener('keyup', function(e){
+            rupiah3.value = formatRupiah(this.value, 'Rp. ');
+        });
+ 
+        /* Fungsi formatRupiah */
+        function formatRupiah(angka, prefix){
+            var number_string = angka.replace(/[^,\d]/g, '').toString(),
+            split           = number_string.split(','),
+            sisa            = split[0].length % 3,
+            rupiah          = split[0].substr(0, sisa),
+            ribuan          = split[0].substr(sisa).match(/\d{3}/gi);
+ 
+            // tambahkan titik jika yang di input sudah menjadi angka ribuan
+            if(ribuan){
+                separator = sisa ? '.' : '';
+                rupiah += separator + ribuan.join('.');
+            }
+ 
+            rupiah = split[1] != undefined ? rupiah + ',' + split[1] : rupiah;
+            return prefix == undefined ? rupiah : (rupiah ? 'Rp. ' + rupiah : '');
+        }
+    </script>
 @endsection

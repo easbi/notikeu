@@ -9,7 +9,7 @@
             <div class="container-fluid">
                 <div class="row mb-2">
                     <div class="col-sm-6">
-                        <h1 class="m-0">Jenis Pembayaran</h1>
+                        <h1 class="m-0">Data Pembayaran</h1>
                     </div><!-- /.col -->                    
                     <div class="col-sm-6">
                         <ol class="breadcrumb float-sm-right">
@@ -19,7 +19,9 @@
                     </div><!-- /.col -->
                 </div><!-- /.row -->
                 <div class="row mb-2">
-                    <div class="col-sm-6"></div>
+                    <div class="col-sm-6">
+                        <a href="{{ url('/pembayaran/create') }}" class="btn btn-primary float-sm-right">Input Transaksi Pembayaran</a>
+                    </div>
                     <div class="col-sm-6">
                         <a href="{{ url('/pembayaran/create') }}" class="btn btn-primary float-sm-right">Input Transaksi Pembayaran</a>
                     </div>    
@@ -45,7 +47,7 @@
                                     <th class="text-center">No</th>
                                     <th>Jenis Pembayaran</th>
                                     <th>Nama Pegawai</th>
-                                    <th>Bersih</th>
+                                    <th>Jumlah Kotor</th>
                                     <th>Potongan</th>
                                     <th>Jumlah Bayar</th>
                                     <th class="text-center">Aksi</th>
@@ -55,11 +57,11 @@
                                 @foreach ($pembayaran as $rp)
                                 <tr>
                                     <td class="text-center">{{ ++$i }}</td>
-                                    <td>{{ $rp->nama_pembayaran }}</td>
+                                    <td>{{ $rp->nama_pembayaran }} Bulan {{ $rp->bulan}} Tahun {{$rp->tahun}} </td>
                                     <td>{{ $rp->fullname }}</td>
-                                    <td>{{ $rp->bersih }}</td>
-                                    <td>{{ $rp->potongan }}</td>
-                                    <td>{{ $rp->jumlah_bayar }}</td>
+                                    <td>{{ number_format($rp->bersih, 2, ",", ".")  }}</td>
+                                    <td>{{ number_format($rp->potongan, 2, ",", ".") }}</td>
+                                    <td>{{ number_format($rp->jumlah_bayar, 2, ",", ".") }}</td>
                                     <td class="text-center">
                                         <form action="{{route('pembayaran.destroy',$rp->id)}}" method="POST">
                                             
