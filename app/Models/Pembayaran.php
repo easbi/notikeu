@@ -14,6 +14,7 @@ class Pembayaran extends Model
         'id_pembayaran',
         'bersih',
         'potongan',
-        'jumlah_bayar'
+        'jumlah_bayar',
+        'send_notif'
     ];
 }

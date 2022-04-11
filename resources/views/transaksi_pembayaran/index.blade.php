@@ -20,7 +20,6 @@
                 </div><!-- /.row -->
                 <div class="row mb-2">
                     <div class="col-sm-6">
-                        <a href="{{ url('/pembayaran/create') }}" class="btn btn-primary float-sm-right">Input Transaksi Pembayaran</a>
                     </div>
                     <div class="col-sm-6">
                         <a href="{{ url('/pembayaran/create') }}" class="btn btn-primary float-sm-right">Input Transaksi Pembayaran</a>

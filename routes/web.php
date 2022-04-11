@@ -20,5 +20,8 @@ Route::get('/', function () {
 });
 
 
+Route::get('pembayaran/sendwa', [PembayaranController::class, 'sendwa'])->name('pembayaran.sendwa');
+Route::post('pembayaran/import', [PembayaranController::class, 'import'])->name('pembayaran.import');
 Route::resource('pembayaran', PembayaranController::class);
+
 Route::resource('refpembayaran', RefpembayaranController::class);

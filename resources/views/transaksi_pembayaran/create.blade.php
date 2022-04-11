@@ -18,6 +18,14 @@
                         </ol>
                     </div><!-- /.col -->
                 </div><!-- /.row -->
+                <div class="row mb-2">
+                    <div class="col-sm-6">                        
+                        <ol class="breadcrumb float-sm-left">
+                            <a href="{{ url('/pembayaran/create') }}" class="btn btn-primary float-sm-right">Import Data</a>
+                        </ol>
+                    </div>
+                    
+                </div>
             </div><!-- /.container-fluid -->
         </div>
         <!-- /.content-header -->
@@ -38,6 +46,59 @@
                 @endif
                 <div class="row">
                     <div class="col-md-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="card-title">Import Export Excel</h5>
+                                <script src="https://cdn.jsdelivr.net/npm/chart.js@2.8.0"></script>
+                                <div class="card-tools">
+                                    <button type="button" class="btn btn-tool" data-card-widget="collapse">
+                                        <i class="fas fa-minus"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-tool" data-card-widget="remove">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-12 col-sm-6 col-md-6">
+                                        <div class="info-box">
+                                            <span class="info-box-icon bg-info elevation-1"><i class="fas fa-folder-open"></i></span>
+                                            <div class="info-box-content">
+                                                <span class="info-box-text">Import Data</span>
+                                                <span class="info-box-number">Klik tombol di bawah ini untuk mengupload file Excel yang berisi data Pembayaran.</span>
+                                                <span class="info-box-number"><button type="button" class="btn btn-primary" data-toggle="modal" data-target="#importExcel2">IMPORT EXCEL</button></span>
+                                            </div>
+                                            
+                                            <!-- Import Excel Modal -->
+                                            <div class="modal fade" id="importExcel2" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel2" aria-hidden="true">
+                                                <div class="modal-dialog" role="document">
+                                                    <form action="{{route('pembayaran.import')}}" method="POST" enctype="multipart/form-data">
+                                                        <div class="modal-content">
+                                                            <div class="modal-header">
+                                                                <h5 class="modal-title" id="exampleModalLabel2">Import Data Excel Pembayaran</h5>
+                                                            </div>
+                                                            <div class="modal-body"> 
+                                                                @csrf
+                                                                <label>Pilih file excel</label>
+                                                                <div class="form-group">
+                                                                    <input type="file" name="file_pembayaran" required="required">
+                                                                </div> 
+                                                            </div>
+                                                            <div class="modal-footer">
+                                                                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                                                                <button type="submit" class="btn btn-primary">Import</button>
+                                                            </div>
+                                                        </div>
+                                                    </form>
+                                                </div>
+                                            </div>  
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                         <div class="card card-primary">
                             <div class="card-header">
                                 <h4 class="card-title">Input Data Pembayaran :</h4>                         
