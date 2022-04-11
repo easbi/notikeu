@@ -19,7 +19,7 @@ class PembayaranImport implements ToModel, WithHeadingRow
         // dd($row);
         return new Pembayaran([
             'id_pegawai'    => $row['id'],
-            'id_pembayaran' => 1 ?? null,
+            'id_pembayaran' => 2 ?? null,
             'bersih'        => $row['bersih'] ?? null,
             'potongan'      => $row['potongan'] ?? null,
             'jumlah_bayar'  => $row['jumlah_bayar'] ?? null,
