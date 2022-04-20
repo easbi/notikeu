@@ -14,12 +14,21 @@ class PembayaranImport implements ToModel, WithHeadingRow
     *
     * @return \Illuminate\Database\Eloquent\Model|null
     */
+
+    private $id_pembayaran;
+
+    public function __construct(int $id_pembayaran) 
+    {
+        $this->id_pembayaran = $id_pembayaran;
+    }
+
+
     public function model(array $row)
     {
-        // dd($row);
+        
         return new Pembayaran([
             'id_pegawai'    => $row['id'],
-            'id_pembayaran' => 2 ?? null,
+            'id_pembayaran' => $this->id_pembayaran ?? null,
             'bersih'        => $row['bersih'] ?? null,
             'potongan'      => $row['potongan'] ?? null,
             'jumlah_bayar'  => $row['jumlah_bayar'] ?? null,

@@ -85,6 +85,13 @@
                                                                 <div class="form-group">
                                                                     <input type="file" name="file_pembayaran" required="required">
                                                                 </div> 
+                                                                <strong>Jenis Pembayaran :</strong>
+                                                                <select class="form-control" id="id_pembayaran" name="id_pembayaran">
+                                                                    <option value="" selected disabled>Select</option>
+                                                                    @foreach($jenispembayaran as $jp)
+                                                                    <option value="{{$jp->id}}"> {{$jp->nama_pembayaran}} {{$jp->bulan}} {{$jp->tahun}}</option>
+                                                                    @endforeach
+                                                                </select>
                                                             </div>
                                                             <div class="modal-footer">
                                                                 <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>

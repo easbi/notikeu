@@ -49,13 +49,14 @@ class PembayaranController extends Controller
 "*Notifikasi {$ns->nama_pembayaran} Bulan {$dt}  Tahun {$ns->tahun}*.
 Nama Pegawai : *{$ns->fullname}* 
 
-Jumlah kotor : Rp.{$kotor} 
+Jumlah awal : Rp.{$kotor} 
 Potongan : Rp.{$potongan} 
  -----------
 Jumlah yang di Bayarkan : *Rp.{$jumlah_bayar}* ke nomor rekening *{$ns->no_rek}*. 
 
-_Pesan ini dikirimkan oleh *Sistem Notifikasi Keuangan* BPS Kota Padang Panjang Pada waktu {$timestamp} WIB_";
-            $token = "sfkCEvboXrecQAZDMXm2m9jt5ptU3agwZTyUpxoCWU1U7gCmie";
+_Pesan ini dikirimkan oleh *Sistem Notifikasi Keuangan* BPS Kota Padang Panjang Pada waktu {$timestamp} WIB_
+";
+            $token = "hg6vAruXzsvs7MuLq1D5LZZjNdgebk7zqmXi1P3oUHxG6mfokU";
 
             $curl = curl_init();
             curl_setopt_array($curl, array(
@@ -98,7 +99,7 @@ _Pesan ini dikirimkan oleh *Sistem Notifikasi Keuangan* BPS Kota Padang Panjang 
         $file->move('file_import',$nama_file);
  
         // import data
-        Excel::import(new PembayaranImport, public_path('/file_import/'.$nama_file));
+        Excel::import(new PembayaranImport($request->id_pembayaran), public_path('/file_import/'.$nama_file));
 
 
         
