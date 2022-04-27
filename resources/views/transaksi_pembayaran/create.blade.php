@@ -84,6 +84,7 @@
                                                                 <label>Pilih file excel</label>
                                                                 <div class="form-group">
                                                                     <input type="file" name="file_pembayaran" required="required">
+                                                                    <a href="https://docs.google.com/spreadsheets/d/1Skg81fWsSRF_0PMUWIX_h-oMOzkrOpI-" class="btn btn-warning" target="_blank">Unduh Template</a>
                                                                 </div> 
                                                                 <strong>Jenis Pembayaran :</strong>
                                                                 <select class="form-control" id="id_pembayaran" name="id_pembayaran">
