@@ -136,7 +136,7 @@
 
           <li class="nav-header">MISCELLANEOUS</li>
           <li class="nav-item">
-            <a href="#" class="nav-link">
+            <a href="https://1drv.ms/b/s!ApioQiHuoxzikvFottbYMDV8hC3n6g?e=QmhopD" class="nav-link" target="_blank">
               <i class="nav-icon fas fa-ellipsis-h"></i>
               <p>Tentang Notikeu</p>
             </a>
