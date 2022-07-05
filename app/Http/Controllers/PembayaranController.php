@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Pembayaran;
+use App\Jobs\SendNotification;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
 use App\Imports\PembayaranImport;
@@ -61,23 +62,15 @@ Jumlah yang di Bayarkan : *Rp.{$jumlah_bayar}* ke nomor rekening *{$ns->no_rek}*
 
 _Pesan ini dikirimkan oleh *Sistem Notifikasi Keuangan* BPS Kota Padang Panjang Pada waktu {$timestamp} WIB_
 ";
-            $token = "hg6vAruXzsvs7MuLq1D5LZZjNdgebk7zqmXi1P3oUHxG6mfokU";
+            $details = [
+                'message' => $message,
+                'no_hp' => $ns->no_hp,
+            ];
 
-            $curl = curl_init();
-            curl_setopt_array($curl, array(
-              CURLOPT_URL => 'https://app.ruangwa.id/api/send_message',
-              CURLOPT_RETURNTRANSFER => true,
-              CURLOPT_ENCODING => '',
-              CURLOPT_MAXREDIRS => 10,
-              CURLOPT_TIMEOUT => 0,
-              CURLOPT_FOLLOWLOCATION => true,
-              CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-              CURLOPT_CUSTOMREQUEST => 'POST',
-              CURLOPT_POSTFIELDS => 'token='.$token.'&number='.$ns->no_hp.'&message='.$message,
-            ));
-            $response = curl_exec($curl);
-            curl_close($curl);
-            $affected = DB::table('transaksi_pembayaran')->where('id', $ns->id)->where('send_notif', 0)->update(['send_notif' => 1]);
+            // send all mail in the queue.
+            dispatch(new SendNotification($details));
+
+            //$affected = DB::table('transaksi_pembayaran')->where('id', $ns->id)->where('send_notif', 0)->update(['send_notif' => 1]);
             // echo $response;
         }
 
