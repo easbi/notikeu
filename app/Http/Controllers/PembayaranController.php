@@ -65,13 +65,14 @@ _Pesan ini dikirimkan oleh *Sistem Notifikasi Keuangan* BPS Kota Padang Panjang 
             $details = [
                 'message' => $message,
                 'no_hp' => $ns->no_hp,
+                'id' => $ns->id,
             ];
 
-            // send all mail in the queue.
-            dispatch(new SendNotification($details));
+            $delay = \DB::table('jobs')->count()*10;
+            $queue = new SendNotification($details);
 
-            //$affected = DB::table('transaksi_pembayaran')->where('id', $ns->id)->where('send_notif', 0)->update(['send_notif' => 1]);
-            // echo $response;
+            // send all notification whatsapp in the queue.
+            dispatch($queue->delay($delay));
         }
 
         
@@ -140,55 +141,11 @@ _Pesan ini dikirimkan oleh *Sistem Notifikasi Keuangan* BPS Kota Padang Panjang 
                 'bersih' => preg_replace('/[^0-9]/', '', $request->bersih),
                 'potongan' => preg_replace('/[^0-9]/', '', $request->potongan),
                 'jumlah_bayar' => preg_replace('/[^0-9]/', '', $request->jumlah_bayar),
-                'send_notif' => 1,
+                'send_notif' => 0,
             ]);
 
 
-        $pembayaran = DB::table('transaksi_pembayaran')
-            ->where('id_pegawai', $request->id_pegawai)
-            ->where('id_pembayaran', $request->id_pembayaran)
-            ->join('pegawai', 'transaksi_pembayaran.id_pegawai','=', 'pegawai.id')
-            ->join('referensi_pembayaran', 'referensi_pembayaran.id','=', 'transaksi_pembayaran.id_pembayaran')
-            ->select('transaksi_pembayaran.*', 'pegawai.fullname', 'pegawai.no_rek', 'referensi_pembayaran.nama_pembayaran', 'referensi_pembayaran.bulan', 'referensi_pembayaran.tahun')
-            ->first();
-
-        $token = "sfkCEvboXrecQAZDMXm2m9jt5ptU3agwZTyUpxoCWU1U7gCmie";
-        $phone = DB::table('pegawai')->where('id', $request->id_pegawai)->select('no_hp')->first()->no_hp;
-
-        $nmeng = array('January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December');
-        $nmtur = array('Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember');
-        $timestamp = date('d-m-y h:i:s');
-        $monthName = date('F', mktime(0, 0, 0, $pembayaran->bulan, 10));
-        $dt = $monthName;
-        $dt = str_ireplace($nmeng, $nmtur, $dt);
-
-        $message = 
-"*Notifikasi {$pembayaran->nama_pembayaran} Bulan {$dt}  Tahun {$pembayaran->tahun}*.
-Nama Pegawai : *{$pembayaran->fullname}* 
-
-Jumlah kotor : {$request->bersih} 
-Potongan : {$request->potongan} 
- -----------
-Jumlah yang di Bayarkan : *{$request->jumlah_bayar}* ke nomor rekening *{$pembayaran->no_rek}*. 
-
-_Pesan ini dikirimkan oleh *Sistem Notifikasi Keuangan* BPS Kota Padang Panjang Pada waktu {$timestamp} WIB_";
-
-        $curl = curl_init();
-        curl_setopt_array($curl, array(
-          CURLOPT_URL => 'https://app.ruangwa.id/api/send_message',
-          CURLOPT_RETURNTRANSFER => true,
-          CURLOPT_ENCODING => '',
-          CURLOPT_MAXREDIRS => 10,
-          CURLOPT_TIMEOUT => 0,
-          CURLOPT_FOLLOWLOCATION => true,
-          CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-          CURLOPT_CUSTOMREQUEST => 'POST',
-          CURLOPT_POSTFIELDS => 'token='.$token.'&number='.$phone.'&message='.$message,
-        ));
-        $response = curl_exec($curl);
-        curl_close($curl);
-
-        /// redirect 
+        // redirect 
         return redirect()->route('pembayaran.index')
                         ->with('success','Data Successfuly inserted');
     }
