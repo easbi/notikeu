@@ -28,7 +28,7 @@ class PembayaranController extends Controller
             ->join('referensi_pembayaran', 'referensi_pembayaran.id','=', 'transaksi_pembayaran.id_pembayaran')
             ->select('transaksi_pembayaran.*', 'pegawai.fullname', 'pegawai.no_hp', 'referensi_pembayaran.nama_pembayaran', 'referensi_pembayaran.bulan', 'referensi_pembayaran.tahun')
             ->get();
-        return view('transaksi_pembayaran.index', compact('pembayaran'))->with('i', (request()->input('page', 1) - 1) * 5);;
+        return view('transaksi_pembayaran.index', compact('pembayaran'))->with('i', (request()->input('page', 1) - 1) * 5);
     }
 
     public function sendwa()
