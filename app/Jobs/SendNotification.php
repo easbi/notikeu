@@ -36,7 +36,7 @@ class SendNotification implements ShouldQueue
      */
     public function handle()
     {
-        $token = "Gj2npNWz7fTTka91sWKSxdK7wArGKAgik4Ge7SALGmt7pMKTik";
+        $token = env('TOKEN_API_WA');
 
         $curl = curl_init();
         curl_setopt_array($curl, array(
