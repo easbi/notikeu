@@ -1,8 +1,9 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\PembayaranController; 
-use App\Http\Controllers\RefpembayaranController; 
+use App\Http\Controllers\PembayaranController;
+use App\Http\Controllers\RefpembayaranController;
+use App\Http\Controllers\PegawaiController;
 use Laravel\Fortify\Http\Controllers\AuthenticatedSessionController;
 /*
 |--------------------------------------------------------------------------
@@ -23,6 +24,8 @@ Route::post('pembayaran/import', [PembayaranController::class, 'import'])->name(
 Route::resource('pembayaran', PembayaranController::class);
 
 Route::resource('refpembayaran', RefpembayaranController::class);
+Route::resource('pegawai', PegawaiController::class);
+
 Route::middleware([
     'auth:sanctum',
     config('jetstream.auth_session'),

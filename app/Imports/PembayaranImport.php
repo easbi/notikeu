@@ -17,7 +17,7 @@ class PembayaranImport implements ToModel, WithHeadingRow
 
     private $id_pembayaran;
 
-    public function __construct(int $id_pembayaran) 
+    public function __construct(int $id_pembayaran)
     {
         $this->id_pembayaran = $id_pembayaran;
     }
@@ -25,7 +25,7 @@ class PembayaranImport implements ToModel, WithHeadingRow
 
     public function model(array $row)
     {
-        
+
         return new Pembayaran([
             'id_pegawai'    => $row['id'],
             'id_pembayaran' => $this->id_pembayaran ?? null,
@@ -33,8 +33,6 @@ class PembayaranImport implements ToModel, WithHeadingRow
             'potongan'      => $row['potongan'] ?? null,
             'jumlah_bayar'  => $row['jumlah_bayar'] ?? null,
             'send_notif'    => 0 ?? null,
-            // 'created_at' => date("Y-m-d H:i:s"),
-            // 'updated_at' => date("Y-m-d H:i:s"),
         ]);
     }
 }

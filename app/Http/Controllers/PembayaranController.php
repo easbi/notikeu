@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Pegawai;
 use App\Models\Pembayaran;
 use App\Jobs\SendNotification;
 use Illuminate\Support\Facades\Auth;
@@ -23,66 +24,94 @@ class PembayaranController extends Controller
      */
     public function index()
     {
+        $user = Auth::user(); // user yang login
+        $pegawaiUser = Pegawai::where('nip', $user->nip)->first();
+        $adminIds = [1, 2, 4, 15]; // id dari tabel pegawai
         $pembayaran = DB::table('transaksi_pembayaran')
-            ->join('pegawai', 'transaksi_pembayaran.id_pegawai','=', 'pegawai.id')
-            ->join('referensi_pembayaran', 'referensi_pembayaran.id','=', 'transaksi_pembayaran.id_pembayaran')
+            ->join('pegawai', 'transaksi_pembayaran.id_pegawai', '=', 'pegawai.id')
+            ->join('referensi_pembayaran', 'referensi_pembayaran.id', '=', 'transaksi_pembayaran.id_pembayaran')
             ->select('transaksi_pembayaran.*', 'pegawai.fullname', 'pegawai.no_hp', 'referensi_pembayaran.nama_pembayaran', 'referensi_pembayaran.bulan', 'referensi_pembayaran.tahun')
-            ->get();
+            ->orderBy('transaksi_pembayaran.id', 'desc');
+        // kalau pegawai login ada, dan id nya bukan admin → filter
+        if ($pegawaiUser && !in_array($pegawaiUser->id, $adminIds)) {
+            $pembayaran->where('pegawai.nip', $user->nip);
+        }
+
+        $pembayaran = $pembayaran->get();
+
         return view('transaksi_pembayaran.index', compact('pembayaran'))->with('i', (request()->input('page', 1) - 1) * 5);
     }
 
     public function sendwa()
     {
         $notsend = DB::table('transaksi_pembayaran')->where('send_notif', 0)
-            ->join('pegawai', 'transaksi_pembayaran.id_pegawai','=', 'pegawai.id')
-            ->join('referensi_pembayaran', 'referensi_pembayaran.id','=', 'transaksi_pembayaran.id_pembayaran')
-            ->select('transaksi_pembayaran.*', 'pegawai.no_hp', 'pegawai.no_rek', 'pegawai.fullname', 'referensi_pembayaran.nama_pembayaran', 'referensi_pembayaran.bulan', 'referensi_pembayaran.tahun')
+            ->join('pegawai', 'transaksi_pembayaran.id_pegawai', '=', 'pegawai.id')
+            ->join('referensi_pembayaran', 'referensi_pembayaran.id', '=', 'transaksi_pembayaran.id_pembayaran')
+            ->select('transaksi_pembayaran.*', 'pegawai.no_hp', 'pegawai.no_rek_bsi', 'pegawai.no_rek_bni', 'pegawai.no_rek_bri', 'pegawai.fullname', 'referensi_pembayaran.nama_pembayaran', 'referensi_pembayaran.bulan', 'referensi_pembayaran.tahun')
             ->get();
 
         // dd($notsend);
 
-        foreach ($notsend as $ns) { 
-            $timestamp = date('d-m-y h:i:s');
+        foreach ($notsend as $ns) {
+            $timestamp = date('d-m-y H:i:s');
             $monthName = date('F', mktime(0, 0, 0, $ns->bulan, 10));
-            $dt = $monthName;
-            $nmeng = array('January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December');
-            $nmtur = array('Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember');
-            $dt = str_ireplace($nmeng, $nmtur, $dt);
+
+            // translate bulan ke bahasa Indonesia
+            $nmeng = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+            $nmtur = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+            $dt = str_ireplace($nmeng, $nmtur, $monthName);
+
+            // format angka
             $kotor = number_format($ns->bersih, 2, ",", ".");
             $potongan = number_format($ns->potongan, 2, ",", ".");
             $jumlah_bayar = number_format($ns->jumlah_bayar, 2, ",", ".");
-            $message = 
-"*Notifikasi {$ns->nama_pembayaran} Bulan {$dt}  Tahun {$ns->tahun}*.
-Nama Pegawai : *{$ns->fullname}* 
 
-Jumlah awal : Rp.{$kotor} 
-Potongan : Rp.{$potongan} 
- -----------
-Jumlah yang di Bayarkan : *Rp.{$jumlah_bayar}* ke nomor rekening *{$ns->no_rek}*. 
+            // tentukan rekening tujuan berdasarkan nama_pembayaran
+            if (stripos($ns->nama_pembayaran, 'Gaji') !== false || stripos($ns->nama_pembayaran, 'Uang Makan') !== false) {
+                $rekeningTujuan = $ns->no_rek_bsi;
+                $bank = "BSI";
+            } elseif (stripos($ns->nama_pembayaran, 'Tunjangan Kinerja') !== false) {
+                $rekeningTujuan = $ns->no_rek_bni;
+                $bank = "BNI";
+            } else {
+                $rekeningTujuan = $ns->no_rek_bri;
+                $bank = "BRI";
+            }
 
-_Pesan ini dikirimkan oleh *Sistem Notifikasi Keuangan* BPS Kota Padang Panjang Pada waktu {$timestamp} WIB_
+            $message =
+                "*Notifikasi {$ns->nama_pembayaran} Bulan {$dt} Tahun {$ns->tahun}*.
+Nama Pegawai : *{$ns->fullname}*
+
+Jumlah awal : Rp.{$kotor}
+Potongan : Rp.{$potongan}
+-----------
+Jumlah yang dibayarkan : *Rp.{$jumlah_bayar}* ke nomor rekening *{$rekeningTujuan}* ({$bank}).
+
+Ingin melihat riwayat pembayaran apa saja yang sudah kamu peroleh? Silakan akses aplikasi Morin BPS Kota Padang Panjang di https://sipalink.id/morin/public/ menggunakan akun KHI Anda.
+
+_Pesan ini dikirimkan oleh Aplikasi *Morin (Money Reminder)* sebagai Aplikasi Notifikasi Keuangan BPS Kota Padang Panjang pada {$timestamp} WIB_
 ";
+
             $details = [
                 'message' => $message,
                 'no_hp' => $ns->no_hp,
                 'id' => $ns->id,
             ];
 
-            $delay = \DB::table('jobs')->count()*10;
+            $delay = \DB::table('jobs')->count() * 10;
             $queue = new SendNotification($details);
 
-            // send all notification whatsapp in the queue.
             dispatch($queue->delay($delay));
         }
 
-        
 
-        // redirect 
+
+        // redirect
         return redirect()->route('pembayaran.index')
-                        ->with('success','Notifikasi Sukses Terkirim ke Nomor WA Pegawai');
+            ->with('success', 'Notifikasi Sukses Terkirim ke Nomor WA Pegawai');
     }
 
-    public function import(Request $request) 
+    public function import(Request $request)
     {
         $this->validate($request, [
             'file_pembayaran' => 'required|mimes:csv,xls,xlsx'
@@ -90,18 +119,18 @@ _Pesan ini dikirimkan oleh *Sistem Notifikasi Keuangan* BPS Kota Padang Panjang 
 
         // menangkap file excel
         $file = $request->file('file_pembayaran');
- 
+
         // membuat nama file unik
-        $nama_file = rand().$file->getClientOriginalName();
- 
+        $nama_file = rand() . $file->getClientOriginalName();
+
         // upload ke folder di dalam folder public
-        $file->move('file_import',$nama_file);
- 
+        $file->move('file_import', $nama_file);
+
         // import data
-        Excel::import(new PembayaranImport($request->id_pembayaran), public_path('/file_import/'.$nama_file));
+        Excel::import(new PembayaranImport($request->id_pembayaran), public_path('/file_import/' . $nama_file));
 
 
-        
+
         // alihkan halaman kembali
         return redirect('/pembayaran')->with('success', 'All good!');
     }
@@ -136,18 +165,18 @@ _Pesan ini dikirimkan oleh *Sistem Notifikasi Keuangan* BPS Kota Padang Panjang 
         ]);
 
         $result = Pembayaran::create([
-                'id_pembayaran' => $request->id_pembayaran,
-                'id_pegawai' =>  $request->id_pegawai,
-                'bersih' => preg_replace('/[^0-9]/', '', $request->bersih),
-                'potongan' => preg_replace('/[^0-9]/', '', $request->potongan),
-                'jumlah_bayar' => preg_replace('/[^0-9]/', '', $request->jumlah_bayar),
-                'send_notif' => 0,
-            ]);
+            'id_pembayaran' => $request->id_pembayaran,
+            'id_pegawai' => $request->id_pegawai,
+            'bersih' => preg_replace('/[^0-9]/', '', $request->bersih),
+            'potongan' => preg_replace('/[^0-9]/', '', $request->potongan),
+            'jumlah_bayar' => preg_replace('/[^0-9]/', '', $request->jumlah_bayar),
+            'send_notif' => 0,
+        ]);
 
 
-        // redirect 
+        // redirect
         return redirect()->route('pembayaran.index')
-                        ->with('success','Data Successfuly inserted');
+            ->with('success', 'Data Successfuly inserted');
     }
 
     /**
@@ -193,7 +222,7 @@ _Pesan ini dikirimkan oleh *Sistem Notifikasi Keuangan* BPS Kota Padang Panjang 
     public function destroy($id)
     {
         //Hapus Data
-        $pembayaran = Pembayaran::find($id); 
+        $pembayaran = Pembayaran::find($id);
         $pembayaran->delete();
 
         // setelah berhasil hapus
