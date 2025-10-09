@@ -67,10 +67,16 @@ class PembayaranController extends Controller
             $jumlah_bayar = number_format($ns->jumlah_bayar, 2, ",", ".");
 
             // tentukan rekening tujuan berdasarkan nama_pembayaran
-            if (stripos($ns->nama_pembayaran, 'Gaji') !== false || stripos($ns->nama_pembayaran, 'Uang Makan') !== false) {
+            if (
+                stripos($ns->nama_pembayaran, 'Gaji') !== false ||
+                stripos($ns->nama_pembayaran, 'Uang Makan') !== false ||
+                stripos($ns->nama_pembayaran, 'UM') !== false) {
                 $rekeningTujuan = $ns->no_rek_bsi;
                 $bank = "BSI";
-            } elseif (stripos($ns->nama_pembayaran, 'Tunjangan Kinerja') !== false) {
+            } elseif (
+                stripos($ns->nama_pembayaran, 'Tunjangan Kinerja') !== false ||
+                stripos($ns->nama_pembayaran, 'TK') !== false ||
+                stripos($ns->nama_pembayaran, 'Tukin') !== false) {
                 $rekeningTujuan = $ns->no_rek_bni;
                 $bank = "BNI";
             } else {
@@ -98,7 +104,7 @@ _Pesan ini dikirimkan oleh Aplikasi *Morin (Money Reminder)* sebagai Aplikasi No
                 'id' => $ns->id,
             ];
 
-            $delay = \DB::table('jobs')->count() * 10;
+            $delay = DB::table('jobs')->count() * 10;
             $queue = new SendNotification($details);
 
             dispatch($queue->delay($delay));
