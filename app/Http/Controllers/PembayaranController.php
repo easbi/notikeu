@@ -66,23 +66,55 @@ class PembayaranController extends Controller
             $potongan = number_format($ns->potongan, 2, ",", ".");
             $jumlah_bayar = number_format($ns->jumlah_bayar, 2, ",", ".");
 
-            // tentukan rekening tujuan berdasarkan nama_pembayaran
-            if (
-                stripos($ns->nama_pembayaran, 'Gaji') !== false ||
-                stripos($ns->nama_pembayaran, 'Uang Makan') !== false ||
-                stripos($ns->nama_pembayaran, 'UM') !== false) {
-                $rekeningTujuan = $ns->no_rek_bsi;
-                $bank = "BSI";
-            } elseif (
-                stripos($ns->nama_pembayaran, 'Tunjangan Kinerja') !== false ||
-                stripos($ns->nama_pembayaran, 'TK') !== false ||
-                stripos($ns->nama_pembayaran, 'Tukin') !== false) {
-                $rekeningTujuan = $ns->no_rek_bni;
-                $bank = "BNI";
+            // Deteksi jenis pembayaran
+            $isGaji = stripos($ns->nama_pembayaran, 'Gaji') !== false
+                || stripos($ns->nama_pembayaran, 'Uang Makan') !== false
+                || stripos($ns->nama_pembayaran, 'UM') !== false;
+
+            $isTukin = stripos($ns->nama_pembayaran, 'Tunjangan Kinerja') !== false
+                || stripos($ns->nama_pembayaran, 'TK') !== false
+                || stripos($ns->nama_pembayaran, 'Tukin') !== false;
+
+
+            // Tentukan rekening dengan fallback
+            if ($isGaji) {
+                // Urutan prioritas: BSI → BNI → BRI
+                if (!empty($ns->no_rek_bsi)) {
+                    $rekeningTujuan = $ns->no_rek_bsi;
+                    $bank = "BSI";
+                } elseif (!empty($ns->no_rek_bni)) {
+                    $rekeningTujuan = $ns->no_rek_bni;
+                    $bank = "BNI";
+                } else {
+                    $rekeningTujuan = $ns->no_rek_bri;
+                    $bank = "BRI";
+                }
+            } elseif ($isTukin) {
+                // Urutan prioritas: BNI → BSI → BRI
+                if (!empty($ns->no_rek_bni)) {
+                    $rekeningTujuan = $ns->no_rek_bni;
+                    $bank = "BNI";
+                } elseif (!empty($ns->no_rek_bsi)) {
+                    $rekeningTujuan = $ns->no_rek_bsi;
+                    $bank = "BSI";
+                } else {
+                    $rekeningTujuan = $ns->no_rek_bri;
+                    $bank = "BRI";
+                }
             } else {
-                $rekeningTujuan = $ns->no_rek_bri;
-                $bank = "BRI";
+                // Pembayaran lain → prioritas BRI → BSI → BNI
+                if (!empty($ns->no_rek_bri)) {
+                    $rekeningTujuan = $ns->no_rek_bri;
+                    $bank = "BRI";
+                } elseif (!empty($ns->no_rek_bsi)) {
+                    $rekeningTujuan = $ns->no_rek_bsi;
+                    $bank = "BSI";
+                } else {
+                    $rekeningTujuan = $ns->no_rek_bni;
+                    $bank = "BNI";
+                }
             }
+
 
             $message =
                 "*Notifikasi {$ns->nama_pembayaran} Bulan {$dt} Tahun {$ns->tahun}*.
