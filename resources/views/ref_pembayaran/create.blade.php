@@ -1,5 +1,5 @@
 @extends('template')
- 
+
 @section('content')
 <!-- Content Wrapper. Contains page content -->
     <div class="content-wrapper">
@@ -20,7 +20,7 @@
             </div><!-- /.container-fluid -->
         </div>
         <!-- /.content-header -->
-    
+
 
         <!-- Main content -->
         <div class="content">
@@ -39,7 +39,7 @@
                     <div class="col-md-12">
                         <div class="card card-primary">
                             <div class="card-header">
-                                <h4 class="card-title">Input Jenis Pembayaran :</h4>                         
+                                <h4 class="card-title">Input Jenis Pembayaran :</h4>
                             </div>
                             <!-- /.card-header -->
                             <!-- form start -->
@@ -74,6 +74,7 @@
                                             <option value='2023'>2023</option>
                                             <option value='2024'>2024</option>
                                             <option value='2025'>2025</option>
+                                            <option value='2026'>2026</option>
                                         </select>
                                     </div>
                                     <div class="form-group">
