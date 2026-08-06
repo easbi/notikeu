@@ -51,7 +51,14 @@ class SendNotification implements ShouldQueue
           CURLOPT_POSTFIELDS => 'token='.$token.'&number='.$this->details['no_hp'].'&message='.$this->details['message'],
         ));
         $response = curl_exec($curl);
-        $affected = DB::table('transaksi_pembayaran')->where('id', $this->details['id'])->where('send_notif', 0)->update(['send_notif' => 1]);
+
+        if (!empty($this->details['id'])) {
+            DB::table('transaksi_pembayaran')
+                ->where('id', $this->details['id'])
+                ->where('send_notif', 0)
+                ->update(['send_notif' => 1]);
+        }
+
         curl_close($curl);
     }
 

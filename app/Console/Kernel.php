@@ -16,8 +16,13 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule)
     {
-        $schedule->command('queue:work --once')->everyThirtyMinutes();
+        $schedule->command('queue:work --once')
+            ->everyThirtyMinutes()
+            ->withoutOverlapping();
 
+        $schedule->command('morin:remind-missing-gaji-reference')
+            ->dailyAt('08:00')
+            ->withoutOverlapping();
     }
 
     /**
