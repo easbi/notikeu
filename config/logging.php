@@ -53,6 +53,12 @@ return [
             'channels' => ['single'],
             'ignore_exceptions' => false,
         ],
+        'kgb' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/kgb.log'),
+            'level' => 'info',
+            'days' => 30,
+        ],
 
         'single' => [
             'driver' => 'single',
