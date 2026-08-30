@@ -46,10 +46,13 @@ Route::prefix('kgb')->middleware(['auth'])->group(function () {
     Route::get('/{id}', [KgbPengurusanController::class, 'show'])->name('kgb.show');
     Route::get('/{id}/proses', [KgbPengurusanController::class, 'prosesForm'])->name('kgb.proses-form');
     Route::post('/{id}/proses', [KgbPengurusanController::class, 'proses'])->name('kgb.proses');
-    Route::get('/{id}/pdf', [KgbPengurusanController::class, 'generatePdf'])->name('kgb.pdf');
+    Route::get('/{id}/word', [KgbPengurusanController::class, 'generateWord'])->name('kgb.word');  // ← HANYA INI
     Route::get('/{id}/preview', [KgbPengurusanController::class, 'preview'])->name('kgb.preview');
     Route::post('/{id}/batal', [KgbPengurusanController::class, 'batal'])->name('kgb.batal');
     Route::post('/pegawai/{id}', [KgbPengurusanController::class, 'updatePegawai'])->name('kgb.update-pegawai');
+    
+    // ← HAPUS DUPLIKAT INI!
+    // Route::get('/kgb/{id}/word', [KgbPengurusanController::class, 'generateWord'])->name('kgb.word');
 });
 
 // ============ JETSTREAM DASHBOARD ============

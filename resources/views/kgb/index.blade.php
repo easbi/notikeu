@@ -72,7 +72,7 @@
                 <div class="col-md-3">
                     <div class="small-box bg-danger">
                         <div class="inner">
-                            <h3>{{ $stats['kgb_bulan_ini'] ?? 0 }}</h3>
+                            <h3>{{ $stats['total_bulan_ini'] ?? 0 }}</h3>
                             <p>Bulan Ini</p>
                         </div>
                         <div class="icon">
@@ -168,14 +168,19 @@
                                         <td><span class="badge badge-success">{{ $item->nomor_sk ?? '-' }}</span></td>
                                         <td>{{ $item->tanggal_selesai ? $item->tanggal_selesai->format('d-m-Y') : '-' }}</td>
                                         <td>
-                                            <a href="{{ route('kgb.show', $item->id) }}" class="btn btn-sm btn-info">
-                                                <i class="fas fa-eye"></i>
-                                            </a>
-                                            @if($item->status == 'selesai')
-                                            <a href="{{ route('kgb.pdf', $item->id) }}" class="btn btn-sm btn-danger">
-                                                <i class="fas fa-file-pdf"></i>
-                                            </a>
-                                            @endif
+                                            <div class="btn-group btn-group-sm">
+                                                <a href="{{ route('kgb.show', $item->id) }}" class="btn btn-info" title="Detail">
+                                                    <i class="fas fa-eye"></i>
+                                                </a>
+                                                @if($item->status == 'selesai')
+                                                    <a href="{{ route('kgb.word', $item->id) }}" class="btn btn-primary" title="Download Word" target="_blank">
+                                                        <i class="fas fa-file-word"></i>
+                                                    </a>
+                                                    <a href="{{ route('kgb.preview', $item->id) }}" class="btn btn-secondary" title="Preview" target="_blank">
+                                                        <i class="fas fa-eye"></i>
+                                                    </a>
+                                                @endif
+                                            </div>
                                         </td>
                                     </tr>
                                     @endforeach

@@ -80,10 +80,11 @@
                                 <tr><th>Masa Kerja KGB</th><td>{{ $pengurusan->masa_kerja_kgb }}</td></tr>
                             </table>
 
-                            @if($pengurusan->status == 'selesai' && $pengurusan->nomor_sk)
+                           @if($pengurusan->status == 'selesai' && $pengurusan->nomor_sk)
                             <div class="mt-3">
-                                <a href="{{ route('kgb.pdf', $pengurusan->id) }}" class="btn btn-danger" target="_blank">
-                                    <i class="fas fa-file-pdf"></i> Download SK
+                                {{-- Ganti dengan link download Word --}}
+                                <a href="{{ route('kgb.word', $pengurusan->id) }}" class="btn btn-primary" target="_blank">
+                                    <i class="fas fa-file-word"></i> Download SK (Word)
                                 </a>
                                 <a href="{{ route('kgb.preview', $pengurusan->id) }}" class="btn btn-info" target="_blank">
                                     <i class="fas fa-eye"></i> Preview

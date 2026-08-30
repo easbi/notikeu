@@ -155,63 +155,90 @@ class Pegawai extends Authenticatable
      * - Jika sudah pernah KGB: TMT KGB terakhir + 2 tahun
      * - Jika belum: TMT CPNS + siklus (genap/ganjil)
      */
+
     public function getTmtKgbBerikutnyaAttribute()
-    {
-        // Jika sudah pernah KGB
-        if ($this->tmt_kgb_terakhir) {
-            return $this->tmt_kgb_terakhir->copy()->addYears(2);
-        }
-
-        $tmtCpns = $this->tmt_cpns;
-        if (!$tmtCpns) {
-            return null;
-        }
-
-        $siklus = $this->siklus_kgb;
-        $tahunSekarang = Carbon::now()->year;
-        $tahunCpns = $tmtCpns->year;
-
-        $selisihTahun = $tahunSekarang - $tahunCpns;
-        $kelipatan = ceil($selisihTahun / $siklus) * $siklus;
-        $tahunKgb = $tahunCpns + $kelipatan;
-
-        return Carbon::create($tahunKgb, $tmtCpns->month, 1);
+{
+    // Jika sudah pernah KGB
+    if ($this->tmt_kgb_terakhir) {
+        return Carbon::parse($this->tmt_kgb_terakhir)->addYears(2);
     }
 
-    /**
-     * MKG Efektif untuk Gaji (dari tabel ref_gaji_pokok)
-     * - Golongan II: ganjil (1,3,5,...)
-     * - Golongan III: genap (0,2,4,6,...)
-     */
-    public function getMkgEfektifAttribute()
-    {
-        $tmtCpns = $this->tmt_cpns;
-        $tmtKgb = $this->tmt_kgb_berikutnya;
-        
-        if (!$tmtCpns || !$tmtKgb) {
-            return 0;
-        }
-
-        $mkg = $tmtKgb->diffInYears($tmtCpns);
-
-        if (str_starts_with($this->golongan, 'II')) {
-            // Bulatkan ke ganjil terdekat ke bawah
-            return $mkg - ($mkg % 2) + 1;
-        }
-        
-        // Bulatkan ke genap terdekat ke bawah
-        return $mkg - ($mkg % 2);
+    $tmtCpns = $this->tmt_cpns;
+    if (!$tmtCpns) {
+        return null;
     }
+
+    $siklus = $this->siklus_kgb;
+    $tahunSekarang = Carbon::now()->year;
+    $tahunCpns = $tmtCpns->year;
+
+    $selisihTahun = $tahunSekarang - $tahunCpns;
+    $kelipatan = ceil($selisihTahun / $siklus) * $siklus;
+    $tahunKgb = $tahunCpns + $kelipatan;
+
+    return Carbon::create($tahunKgb, $tmtCpns->month, 1);
+}
+
+/**
+ * MKG Efektif untuk Gaji (dari tabel ref_gaji_pokok)
+ * - Golongan II: ganjil (1,3,5,...)
+ * - Golongan III: genap (0,2,4,6,...)
+ */
+public function getMkgEfektifAttribute()
+{
+    $tmtKgb = $this->getTmtKgbBerikutnyaAttribute();
+    $tmtCpns = $this->tmt_cpns;
+
+    if (!$tmtKgb || !$tmtCpns) {
+        return 0;
+    }
+
+    $mkg = $tmtCpns->diffInYears($tmtKgb);
+
+    // Cek apakah golongan adalah II/a, II/b, II/c, II/d
+    $isGolonganII = preg_match('/^II\//', $this->golongan);
+
+    if ($isGolonganII) {
+        // Golongan II → GANJIL
+        if ($mkg % 2 == 0) {
+            $mkg = $mkg - 1;
+        }
+    } else {
+        // Golongan III → GENAP
+        if ($mkg % 2 != 0) {
+            $mkg = $mkg - 1;
+        }
+    }
+
+    return max($mkg, 0);
+}
+
 
     /**
      * Gaji Pokok Baru (dari tabel ref_gaji_pokok)
+     * Jika MKG tidak ditemukan, turunkan -1 tahun sampai ditemukan
      */
     public function getGajiPokokBaruAttribute()
     {
-        $gaji = RefGajiPokok::where('golongan', $this->golongan)
-            ->where('mkg', $this->mkg_efektif)
-            ->first();
+        $jenis = $this->jenis_pegawai ?? 'PNS';
+        $mkg = $this->mkg_efektif;
+        $golongan = $this->golongan;
 
-        return $gaji->nominal_gaji ?? 0;
+        // Cari gaji dengan MKG yang tersedia, turunkan -1 jika tidak ditemukan
+        while ($mkg >= 0) {
+            $gaji = RefGajiPokok::where('jenis_pegawai', $jenis)
+                ->where('golongan', $golongan)
+                ->where('mkg', $mkg)
+                ->first();
+
+            if ($gaji) {
+                return $gaji->nominal_gaji;
+            }
+
+            // Jika tidak ditemukan, turunkan 1 tahun
+            $mkg--;
+        }
+
+        return 0; // Jika tidak ditemukan sama sekali
     }
 }

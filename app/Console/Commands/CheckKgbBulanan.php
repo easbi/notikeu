@@ -125,6 +125,10 @@ class CheckKgbBulanan extends Command
                         $gajiBaru = $refGaji->nominal_gaji ?? 0;
                     }
 
+                    // ============ PERHITUNGAN MASA KERJA ============
+                    $masaKerjaGolongan = $this->hitungMasaKerja($pegawai->tmt_cpns, $pegawai->tmt_pangkat_terakhir);
+                    $masaKerjaKGB = $this->hitungMasaKerja($pegawai->tmt_cpns, $tmtKgbBaru);
+
                     // Buat pengurusan baru
                     $pengurusan = KgbPengurusan::create([
                         'pegawai_id' => $pegawai->id,
@@ -146,14 +150,14 @@ class CheckKgbBulanan extends Command
                         'gaji_pokok_baru' => $gajiBaru,
                         'dasar_peraturan' => 'PP 5/2024',
                         
-                        'masa_kerja_golongan' => $pegawai->mkg_golongan,
-                        'masa_kerja_kgb' => $pegawai->mkg_golongan,
+                        'masa_kerja_golongan' => $masaKerjaGolongan,
+                        'masa_kerja_kgb' => $masaKerjaKGB,
                         
                         'sk_pangkat_nomor' => $riwayatPangkat->nomor_sk ?? '-',
                         'sk_pangkat_tanggal' => $riwayatPangkat->tanggal_sk ?? now(),
                         'sk_pangkat_pejabat' => $riwayatPangkat->pejabat_penetap ?? '-',
                         'sk_pangkat_tmt_gaji' => $riwayatGaji->tmt_berlaku ?? $tmtKgbBaru,
-                        'sk_pangkat_masa_kerja' => $pegawai->mkg_golongan,
+                        'sk_pangkat_masa_kerja' => $masaKerjaGolongan,
                         
                         'status' => 'pending',
                         'tanggal_pengajuan' => Carbon::now(),
@@ -213,6 +217,23 @@ class CheckKgbBulanan extends Command
 
         $this->info('✅ Selesai!');
         return 0;
+    }
+
+    // ============================================================
+    // HELPER FUNCTIONS
+    // ============================================================
+
+    /**
+     * Hitung selisih masa kerja dalam format "X Tahun Y Bulan"
+     */
+    protected function hitungMasaKerja($tmtAwal, $tmtAkhir)
+    {
+        if (!$tmtAwal || !$tmtAkhir) {
+            return '0 Tahun 0 Bulan';
+        }
+        
+        $diff = Carbon::parse($tmtAwal)->diff(Carbon::parse($tmtAkhir));
+        return $diff->y . ' Tahun ' . $diff->m . ' Bulan';
     }
 
     /**
