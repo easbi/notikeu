@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\DB;
 class RemindMissingGajiReference extends Command
 {
     protected $signature = 'morin:remind-missing-gaji-reference';
-    protected $description = 'Send reminder to responsible user when current month gaji or uang makan or tukin reference is missing';
+    protected $description = 'Send reminder to responsible user when the expected gaji, uang makan, or tukin reference is missing';
 
     public function handle()
     {
@@ -20,9 +20,12 @@ class RemindMissingGajiReference extends Command
             return 0;
         }
 
-        $hasGajiReference = $this->hasReferenceWithKeyword('gaji');
-        $hasUangMakanReference = $this->hasReferenceWithKeyword('uang makan');
-        $hasTukinReference = $this->hasReferenceWithKeyword('tukin') || $this->hasReferenceWithKeyword('tunjangan kinerja');
+        $previousMonth = $today->copy()->startOfMonth()->subMonth();
+
+        $hasGajiReference = $this->hasReferenceWithKeyword('gaji', $today);
+        $hasUangMakanReference = $this->hasReferenceWithKeyword('uang makan', $previousMonth);
+        $hasTukinReference = $this->hasReferenceWithKeyword('tukin', $previousMonth)
+            || $this->hasReferenceWithKeyword('tunjangan kinerja', $previousMonth);
 
         $shouldRemindForGaji = !$hasGajiReference && $today->day > 1;
         $shouldRemindForUangMakan = !$hasUangMakanReference && $today->day > 10;
@@ -38,7 +41,13 @@ class RemindMissingGajiReference extends Command
             return 0;
         }
 
-        $messages = $this->buildMessages($today, $shouldRemindForGaji, $shouldRemindForUangMakan, $shouldRemindForTukin);
+        $messages = $this->buildMessages(
+            $today,
+            $previousMonth,
+            $shouldRemindForGaji,
+            $shouldRemindForUangMakan,
+            $shouldRemindForTukin
+        );
 
         foreach ($messages as $index => $message) {
             $details = [
@@ -56,18 +65,18 @@ class RemindMissingGajiReference extends Command
         return 0;
     }
 
-    private function hasReferenceWithKeyword($keyword)
+    private function hasReferenceWithKeyword($keyword, $period)
     {
         return DB::table('referensi_pembayaran')
-            ->where('bulan', now()->month)
-            ->where('tahun', now()->year)
+            ->where('bulan', $period->month)
+            ->where('tahun', $period->year)
             ->get()
             ->contains(function ($item) use ($keyword) {
                 return stripos($item->nama_pembayaran ?? '', $keyword) !== false;
             });
     }
 
-    private function buildMessages($today, $shouldRemindForGaji, $shouldRemindForUangMakan, $shouldRemindForTukin)
+    private function buildMessages($today, $previousMonth, $shouldRemindForGaji, $shouldRemindForUangMakan, $shouldRemindForTukin)
     {
         $messages = [];
 
@@ -83,7 +92,7 @@ _Pesan ini dikirimkan oleh Aplikasi *Morin (Money Reminder)* sebagai Aplikasi No
         if ($shouldRemindForUangMakan) {
             $messages[] = "*Morin : Peringatan Pembuatan Notifikasi Pembayaran Uang Makan Belum Dibuat*.
 Saat ini tanggal {$today->translatedFormat('d F Y')}.
-Referensi pembayaran Uang Makan untuk bulan {$today->translatedFormat('F')} tahun {$today->year} belum tersedia.
+Referensi pembayaran Uang Makan untuk bulan {$previousMonth->translatedFormat('F')} tahun {$previousMonth->year} belum tersedia.
 Mohon penanggung jawab menindaklanjuti segera agar data pembayaran dapat diproses.
 
 _Pesan ini dikirimkan oleh Aplikasi *Morin (Money Reminder)* sebagai Aplikasi Notifikasi Keuangan BPS Kota Padang Panjang pada {$today->format('d-m-y H:i:s')} WIB_";
@@ -92,7 +101,7 @@ _Pesan ini dikirimkan oleh Aplikasi *Morin (Money Reminder)* sebagai Aplikasi No
         if ($shouldRemindForTukin) {
             $messages[] = "*Morin : Peringatan Pembuatan Notifikasi Pembayaran Tunjangan Kinerja/Tukin Belum Dibuat*.
 Saat ini tanggal {$today->translatedFormat('d F Y')}.
-Referensi pembayaran Tunjangan Kinerja/Tukin untuk bulan {$today->translatedFormat('F')} tahun {$today->year} belum tersedia.
+Referensi pembayaran Tunjangan Kinerja/Tukin untuk bulan {$previousMonth->translatedFormat('F')} tahun {$previousMonth->year} belum tersedia.
 Mohon penanggung jawab menindaklanjuti segera agar data pembayaran dapat diproses.
 
 _Pesan ini dikirimkan oleh Aplikasi *Morin (Money Reminder)* sebagai Aplikasi Notifikasi Keuangan BPS Kota Padang Panjang pada {$today->format('d-m-y H:i:s')} WIB_";
