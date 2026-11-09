@@ -27,7 +27,7 @@ class Pegawai extends Authenticatable
         'jabatan',
         'email',
         'password',
-        
+
         // ===== FIELD  UNTUK KGB =====
         'gelar',
         'golongan',
@@ -57,7 +57,7 @@ class Pegawai extends Authenticatable
     ];
 
 
-    
+
     public function riwayatPangkat()
     {
         return $this->hasMany(KgbRiwayatPangkat::class)->orderBy('tmt_mulai', 'desc');
@@ -85,26 +85,26 @@ class Pegawai extends Authenticatable
         return $this->hasMany(KgbLog::class)->orderBy('waktu', 'desc');
     }
 
- 
+
     public function getTmtCpnsAttribute()
     {
         if (!$this->nip || strlen(trim($this->nip)) < 14) {
             return null;
         }
-        
+
         $nip = trim($this->nip);
-        
+
         // Digit 9-12 = Tahun (0-based: index 8-11)
         $tahun = substr($nip, 8, 4);  // 2019
-        
+
         // Digit 13-14 = Bulan (0-based: index 12-13)
         $bulan = (int) substr($nip, 12, 2); // 01
-        
+
         // Validasi
         if ($tahun < 1900 || $tahun > 2099 || $bulan < 1 || $bulan > 12) {
             return null;
         }
-        
+
         return Carbon::create($tahun, $bulan, 1);
     }
 
@@ -134,7 +134,7 @@ class Pegawai extends Authenticatable
         if (!$this->tmt_cpns || !$this->tmt_pangkat_terakhir) {
             return '0 Tahun 0 Bulan';
         }
-        
+
         $diff = $this->tmt_cpns->diff($this->tmt_pangkat_terakhir);
         return $diff->y . ' Tahun ' . $diff->m . ' Bulan';
     }
@@ -157,61 +157,64 @@ class Pegawai extends Authenticatable
      */
 
     public function getTmtKgbBerikutnyaAttribute()
-{
-    // Jika sudah pernah KGB
-    if ($this->tmt_kgb_terakhir) {
-        return Carbon::parse($this->tmt_kgb_terakhir)->addYears(2);
-    }
-
-    $tmtCpns = $this->tmt_cpns;
-    if (!$tmtCpns) {
-        return null;
-    }
-
-    $siklus = $this->siklus_kgb;
-    $tahunSekarang = Carbon::now()->year;
-    $tahunCpns = $tmtCpns->year;
-
-    $selisihTahun = $tahunSekarang - $tahunCpns;
-    $kelipatan = ceil($selisihTahun / $siklus) * $siklus;
-    $tahunKgb = $tahunCpns + $kelipatan;
-
-    return Carbon::create($tahunKgb, $tmtCpns->month, 1);
-}
-
-/**
- * MKG Efektif untuk Gaji (dari tabel ref_gaji_pokok)
- * - Golongan II: ganjil (1,3,5,...)
- * - Golongan III: genap (0,2,4,6,...)
- */
-public function getMkgEfektifAttribute()
-{
-    $tmtKgb = $this->getTmtKgbBerikutnyaAttribute();
-    $tmtCpns = $this->tmt_cpns;
-
-    if (!$tmtKgb || !$tmtCpns) {
-        return 0;
-    }
-
-    $mkg = $tmtCpns->diffInYears($tmtKgb);
-
-    // Cek apakah golongan adalah II/a, II/b, II/c, II/d
-    $isGolonganII = preg_match('/^II\//', $this->golongan);
-
-    if ($isGolonganII) {
-        // Golongan II → GANJIL
-        if ($mkg % 2 == 0) {
-            $mkg = $mkg - 1;
+    {
+        // Jika sudah pernah KGB
+        if ($this->tmt_kgb_terakhir) {
+            return Carbon::parse($this->tmt_kgb_terakhir)->addYears(2);
         }
-    } else {
-        // Golongan III → GENAP
-        if ($mkg % 2 != 0) {
-            $mkg = $mkg - 1;
+
+        $tmtCpns = $this->tmt_cpns;
+        if (!$tmtCpns) {
+            return null;
         }
+
+        $siklus = $this->siklus_kgb; // 2 untuk III, 1 untuk II
+        $tahunCpns = $tmtCpns->year;
+        $bulanCpns = $tmtCpns->month;
+        $tahunSekarang = Carbon::now()->year;
+
+        // Cari kelipatan siklus berikutnya yang > tahun sekarang
+        $tahunKgb = $tahunCpns;
+        while ($tahunKgb <= $tahunSekarang) {
+            $tahunKgb += $siklus;
+        }
+
+        return Carbon::create($tahunKgb, $bulanCpns, 1);
     }
 
-    return max($mkg, 0);
-}
+    /**
+     * MKG Efektif untuk Gaji (dari tabel ref_gaji_pokok)
+     * - Golongan II: ganjil (1,3,5,...)
+     * - Golongan III: genap (0,2,4,6,...)
+     */
+    public function getMkgEfektifAttribute()
+    {
+        $tmtKgb = $this->getTmtKgbBerikutnyaAttribute();
+        $tmtCpns = $this->tmt_cpns;
+
+        if (!$tmtKgb || !$tmtCpns) {
+            return 0;
+        }
+
+        $mkg = $tmtCpns->diffInYears($tmtKgb);
+
+        // Cek apakah golongan adalah II/a, II/b, II/c, II/d
+        $isGolonganII = preg_match('/^II\//', $this->golongan);
+
+        if ($isGolonganII) {
+            // Golongan II → GANJIL
+            if ($mkg % 2 == 0) {
+                $mkg = $mkg - 1;
+            }
+        } else {
+            // Golongan III → GENAP
+            if ($mkg % 2 != 0) {
+                $mkg = $mkg - 1;
+            }
+        }
+
+        return max($mkg, 0);
+    }
 
 
     /**

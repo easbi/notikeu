@@ -21,7 +21,7 @@
                     <a href="{{ route('pegawai.create') }}" class="btn btn-primary btn-sm">
                         <i class="fas fa-plus-circle"></i> Tambah Pegawai
                     </a>
-                    <a href="{{ route('kgb.dashboard') }}" class="btn btn-success btn-sm">
+                    <a href="{{ route('kgb.index') }}" class="btn btn-success btn-sm">
                         <i class="fas fa-chart-line"></i> Dashboard KGB
                     </a>
                 </div>
