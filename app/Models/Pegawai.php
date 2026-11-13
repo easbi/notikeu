@@ -125,26 +125,14 @@ class Pegawai extends Authenticatable
         return $this->pangkat . ' (' . $this->golongan . ')';
     }
 
-    /**
-     * Masa Kerja Golongan (untuk SK)
-     * = TMT Pangkat - TMT CPNS (tanpa pembulatan)
-     */
-    public function getMkgGolonganAttribute()
-    {
-        if (!$this->tmt_cpns || !$this->tmt_pangkat_terakhir) {
-            return '0 Tahun 0 Bulan';
-        }
-
-        $diff = $this->tmt_cpns->diff($this->tmt_pangkat_terakhir);
-        return $diff->y . ' Tahun ' . $diff->m . ' Bulan';
-    }
 
     /**
      * Siklus KGB: Golongan II = ganjil, Golongan III = genap
      */
     public function getSiklusKgbAttribute()
     {
-        if (str_starts_with($this->golongan, 'II')) {
+        // preg_match memastikan yang dicek benar-benar II/ (II/a, II/b, dll), bukan III
+        if (preg_match('/^II\//', $this->golongan)) {
             return 1; // ganjil
         }
         return 2; // genap
@@ -182,11 +170,48 @@ class Pegawai extends Authenticatable
         return Carbon::create($tahunKgb, $bulanCpns, 1);
     }
 
-    /**
-     * MKG Efektif untuk Gaji (dari tabel ref_gaji_pokok)
-     * - Golongan II: ganjil (1,3,5,...)
-     * - Golongan III: genap (0,2,4,6,...)
-     */
+    public function getMkgGolonganAttribute()
+    {
+        if (!$this->tmt_cpns || !$this->tmt_pangkat_terakhir) {
+            return '0 Tahun 0 Bulan';
+        }
+
+        $diff = $this->tmt_cpns->diff($this->tmt_pangkat_terakhir);
+        $tahun = $diff->y;
+        $bulan = $diff->m;
+
+        $riwayats = \App\Models\KgbRiwayatPangkat::where('pegawai_id', $this->id)
+            ->orderBy('tmt_mulai', 'asc')
+            ->get();
+
+        if ($riwayats->isNotEmpty()) {
+            $golAwal = $riwayats->first()->golongan;
+
+            // 1. Modal awal 3 tahun
+            if (in_array($golAwal, ['I/b', 'I/c', 'I/d', 'II/b', 'II/c', 'II/d'])) {
+                $tahun += 3;
+            }
+
+            // 2. Potong Segaris
+            $roman = ['I' => 1, 'II' => 2, 'III' => 3, 'IV' => 4];
+            $prev = $roman[explode('/', $riwayats->first()->golongan)[0]] ?? 0;
+
+            foreach ($riwayats as $r) {
+                $curr = $roman[explode('/', $r->golongan)[0]] ?? 0;
+                if ($prev == 1 && $curr == 2) {
+                    $tahun -= 6; // I ke II potong 6
+                } elseif ($prev == 2 && $curr == 3) {
+                    $tahun -= 5; // II ke III potong 5
+                }
+                // III ke IV tidak dipotong
+                $prev = $curr;
+            }
+        }
+
+        $tahun = max(0, $tahun);
+        return $tahun . ' Tahun ' . $bulan . ' Bulan';
+    }
+
     public function getMkgEfektifAttribute()
     {
         $tmtKgb = $this->getTmtKgbBerikutnyaAttribute();
@@ -196,26 +221,51 @@ class Pegawai extends Authenticatable
             return 0;
         }
 
+        // Masa Kerja Seluruhnya (MKS)
         $mkg = $tmtCpns->diffInYears($tmtKgb);
 
-        // Cek apakah golongan adalah II/a, II/b, II/c, II/d
-        $isGolonganII = preg_match('/^II\//', $this->golongan);
+        $riwayats = \App\Models\KgbRiwayatPangkat::where('pegawai_id', $this->id)
+            ->orderBy('tmt_mulai', 'asc')
+            ->get();
 
-        if ($isGolonganII) {
-            // Golongan II → GANJIL
-            if ($mkg % 2 == 0) {
-                $mkg = $mkg - 1;
+        if ($riwayats->isNotEmpty()) {
+            $golAwal = $riwayats->first()->golongan;
+
+            // 1. Modal awal 3 tahun
+            if (in_array($golAwal, ['I/b', 'I/c', 'I/d', 'II/b', 'II/c', 'II/d'])) {
+                $mkg += 3;
             }
+
+            // 2. Potong Segaris (Pakai Array)
+            $roman = ['I' => 1, 'II' => 2, 'III' => 3, 'IV' => 4];
+            $prev = $roman[explode('/', $riwayats->first()->golongan)[0]] ?? 0;
+
+            foreach ($riwayats as $r) {
+                $curr = $roman[explode('/', $r->golongan)[0]] ?? 0;
+                if ($prev == 1 && $curr == 2) {
+                    $mkg -= 6;
+                } elseif ($prev == 2 && $curr == 3) {
+                    $mkg -= 5;
+                }
+                $prev = $curr;
+            }
+        }
+
+        $mkg = max($mkg, 0);
+
+        // Pembulatan (Pecah string pakai explode agar akurat)
+        $golSekarang = explode('/', $this->golongan)[0];
+
+        if (in_array($golSekarang, ['I', 'II'])) {
+            if ($mkg % 2 == 0)
+                $mkg--; // Ganjil
         } else {
-            // Golongan III → GENAP
-            if ($mkg % 2 != 0) {
-                $mkg = $mkg - 1;
-            }
+            if ($mkg % 2 != 0)
+                $mkg--; // Genap
         }
 
         return max($mkg, 0);
     }
-
 
     /**
      * Gaji Pokok Baru (dari tabel ref_gaji_pokok)
@@ -243,5 +293,45 @@ class Pegawai extends Authenticatable
         }
 
         return 0; // Jika tidak ditemukan sama sekali
+    }
+        public function hitungMasaKerjaSegaris($tmtAkhir)
+    {
+        if (!$this->tmt_cpns || !$tmtAkhir) {
+            return '0 Tahun 0 Bulan';
+        }
+
+        $diff = $this->tmt_cpns->diff($tmtAkhir);
+        $tahun = $diff->y;
+        $bulan = $diff->m;
+
+        $riwayats = \App\Models\KgbRiwayatPangkat::where('pegawai_id', $this->id)
+            ->orderBy('tmt_mulai', 'asc')
+            ->get();
+
+        if ($riwayats->isNotEmpty()) {
+            $golAwal = $riwayats->first()->golongan;
+            $romanAwal = explode('/', $golAwal)[0] ?? '';
+
+            // JIKA MULAI DARI GOLONGAN II
+            if ($romanAwal == 'II') {
+                $tahun -= 5; // Kurangi 5 karena lompat ke Gol III/IV
+
+                // Jika mulai dari II/b, II/c, II/d, tambah modal 3 tahun
+                if (in_array($golAwal, ['II/b', 'II/c', 'II/d'])) {
+                    $tahun += 3;
+                }
+            }
+            // JIKA MULAI DARI GOLONGAN I
+            elseif ($romanAwal == 'I') {
+                $tahun -= 11; // I ke II (-6), II ke III (-5) = -11
+                if (in_array($golAwal, ['I/b', 'I/c', 'I/d'])) {
+                    $tahun += 3;
+                }
+            }
+            // Jika mulai dari Gol III, tidak ada pengurangan/tambahan
+        }
+
+        $tahun = max(0, $tahun);
+        return $tahun . ' Tahun ' . $bulan . ' Bulan';
     }
 }

@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
 use DB;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Storage;
 
 class PegawaiController extends Controller
 {
@@ -35,23 +36,40 @@ class PegawaiController extends Controller
         if ($this->isAdmin()) {
             // Admin: lihat semua pegawai
             $pegawai = Pegawai::select(
-                'id', 'fullname', 'nip', 'no_hp',
-                'no_rek_bsi', 'no_rek_bni', 'no_rek_bri',
-                'golongan', 'pangkat', 'jabatan',
-                'tmt_pangkat_terakhir', 'tmt_kgb_terakhir',
-                'gaji_pokok_saat_ini', 'status_aktif'
+                'id',
+                'fullname',
+                'nip',
+                'no_hp',
+                'no_rek_bsi',
+                'no_rek_bni',
+                'no_rek_bri',
+                'golongan',
+                'pangkat',
+                'jabatan',
+                'tmt_pangkat_terakhir',
+                'tmt_kgb_terakhir',
+                'gaji_pokok_saat_ini',
+                'status_aktif'
             )->get();
         } else {
             // User biasa: hanya lihat data sendiri
             $pegawai = Pegawai::select(
-                'id', 'fullname', 'nip', 'no_hp',
-                'no_rek_bsi', 'no_rek_bni', 'no_rek_bri',
-                'golongan', 'pangkat', 'jabatan',
-                'tmt_pangkat_terakhir', 'tmt_kgb_terakhir',
+                'id',
+                'fullname',
+                'nip',
+                'no_hp',
+                'no_rek_bsi',
+                'no_rek_bni',
+                'no_rek_bri',
+                'golongan',
+                'pangkat',
+                'jabatan',
+                'tmt_pangkat_terakhir',
+                'tmt_kgb_terakhir',
                 'gaji_pokok_saat_ini'
             )
-            ->where('nip', $user->nip)
-            ->get();
+                ->where('nip', $user->nip)
+                ->get();
         }
 
         if ($pegawai->isEmpty()) {
@@ -163,7 +181,7 @@ class PegawaiController extends Controller
         $pegawai->load([
             'riwayatPangkat',
             'riwayatGaji',
-            'pengurusanKgb' => function($q) {
+            'pengurusanKgb' => function ($q) {
                 $q->limit(10);
             }
         ]);
@@ -333,5 +351,147 @@ class PegawaiController extends Controller
         }
 
         return view('pegawai.riwayat_kgb', compact('pegawai'));
+    }
+
+    public function riwayatPangkat($id)
+    {
+        $pegawai = Pegawai::with([
+            'riwayatPangkat' => function ($q) {
+                $q->orderBy('tmt_mulai', 'asc'); // Urut dari CPNS ke terbaru
+            }
+        ])->findOrFail($id);
+
+        return view('pegawai.riwayat_pangkat', compact('pegawai'));
+    }
+
+    public function storeRiwayatPangkat(Request $request, $id)
+    {
+        $request->validate([
+            'golongan' => 'required',
+            'pangkat' => 'required',
+            'tmt_mulai' => 'required|date',
+            'nomor_sk' => 'required',
+            'tanggal_sk' => 'required|date',
+            'pejabat_penetap' => 'required',
+        ]);
+
+        $pegawai = Pegawai::findOrFail($id);
+
+        KgbRiwayatPangkat::create([
+            'pegawai_id' => $pegawai->id,
+            'golongan' => $request->golongan,
+            'pangkat' => $request->pangkat,
+            'jabatan' => $request->jabatan ?? $pegawai->jabatan ?? '-',
+            'tmt_mulai' => $request->tmt_mulai,
+            'nomor_sk' => $request->nomor_sk,
+            'tanggal_sk' => $request->tanggal_sk,
+            'pejabat_penetap' => $request->pejabat_penetap,
+            'masa_kerja_golongan' => $pegawai->mkg_golongan,
+        ]);
+
+        return back()->with('success', 'Riwayat Pangkat berhasil ditambahkan!');
+    }
+    public function editRiwayatPangkat($id)
+    {
+        $riwayat = KgbRiwayatPangkat::findOrFail($id);
+        return view('pegawai.edit_riwayat_pangkat', compact('riwayat'));
+    }
+
+    public function updateRiwayatPangkat(Request $request, $id)
+    {
+        $request->validate([
+            'golongan' => 'required',
+            'pangkat' => 'required',
+            'tmt_mulai' => 'required|date',
+            'nomor_sk' => 'required',
+            'tanggal_sk' => 'required|date',
+            'pejabat_penetap' => 'required',
+        ]);
+
+        $riwayat = KgbRiwayatPangkat::findOrFail($id);
+        $riwayat->update($request->all());
+
+        return redirect()->route('pegawai.riwayat-pangkat', $riwayat->pegawai_id)
+            ->with('success', 'Riwayat Pangkat berhasil diperbarui!');
+    }
+
+    public function destroyRiwayatPangkat($id)
+    {
+        $riwayat = KgbRiwayatPangkat::findOrFail($id);
+        $pegawai_id = $riwayat->pegawai_id;
+        $riwayat->delete();
+
+        return redirect()->route('pegawai.riwayat-pangkat', $pegawai_id)
+            ->with('success', 'Riwayat Pangkat berhasil dihapus!');
+    }
+
+        public function riwayatGaji($id)
+    {
+        $pegawai = Pegawai::with(['riwayatGaji' => function($q) {
+            $q->orderBy('tmt_berlaku', 'asc'); // Urut dari gaji terlama ke terbaru
+        }])->findOrFail($id);
+
+        return view('pegawai.riwayat_gaji', compact('pegawai'));
+    }
+
+    public function storeRiwayatGaji(Request $request, $id)
+    {
+        $request->validate([
+            'gaji_pokok' => 'required|numeric|min:0',
+            'tmt_berlaku' => 'required|date',
+            'jenis' => 'required|in:PANGKAT,KGB,PP,LAINNYA',
+            'nomor_sk' => 'required',
+            'tanggal_sk' => 'required|date',
+            'pejabat_penetap' => 'required',
+        ]);
+
+        $pegawai = Pegawai::findOrFail($id);
+
+        KgbRiwayatGaji::create([
+            'pegawai_id' => $pegawai->id,
+            'gaji_pokok' => $request->gaji_pokok,
+            'tmt_berlaku' => $request->tmt_berlaku,
+            'jenis' => $request->jenis,
+            'nomor_sk' => $request->nomor_sk,
+            'tanggal_sk' => $request->tanggal_sk,
+            'pejabat_penetap' => $request->pejabat_penetap,
+            'dasar_peraturan' => $request->dasar_peraturan ?? '-',
+        ]);
+
+        return back()->with('success', 'Riwayat Gaji berhasil ditambahkan!');
+    }
+
+    public function editRiwayatGaji($id)
+    {
+        $riwayat = KgbRiwayatGaji::findOrFail($id);
+        return view('pegawai.edit_riwayat_gaji', compact('riwayat'));
+    }
+
+    public function updateRiwayatGaji(Request $request, $id)
+    {
+        $request->validate([
+            'gaji_pokok' => 'required|numeric|min:0',
+            'tmt_berlaku' => 'required|date',
+            'jenis' => 'required|in:PANGKAT,KGB,PP,LAINNYA',
+            'nomor_sk' => 'required',
+            'tanggal_sk' => 'required|date',
+            'pejabat_penetap' => 'required',
+        ]);
+
+        $riwayat = KgbRiwayatGaji::findOrFail($id);
+        $riwayat->update($request->all());
+
+        return redirect()->route('pegawai.riwayat-gaji', $riwayat->pegawai_id)
+            ->with('success', 'Riwayat Gaji berhasil diperbarui!');
+    }
+
+    public function destroyRiwayatGaji($id)
+    {
+        $riwayat = KgbRiwayatGaji::findOrFail($id);
+        $pegawai_id = $riwayat->pegawai_id;
+        $riwayat->delete();
+
+        return redirect()->route('pegawai.riwayat-gaji', $pegawai_id)
+            ->with('success', 'Riwayat Gaji berhasil dihapus!');
     }
 }

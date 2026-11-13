@@ -82,6 +82,41 @@ class KgbPengurusanController extends Controller
             'logs.dilakukanOleh'
         ])->findOrFail($id);
 
+        $pegawai = $pengurusan->pegawai;
+
+        if ($pegawai) {
+            // 1. Ambil data KGB terakhir dari riwayat gaji (jika ada)
+            $riwayatKgbTerakhir = $pegawai->riwayatGaji->where('jenis', 'KGB')->first();
+
+            // 2. Tentukan SK Terakhir (Bandingkan TMT Gaji vs TMT Pangkat)
+            $riwayatGaji = $pegawai->riwayatGaji->first();
+            $tmtPangkat = $pegawai->tmt_pangkat_terakhir;
+            $tmtGaji = $pegawai->tmt_gaji_terakhir ?? ($riwayatGaji ? $riwayatGaji->tmt_berlaku : null);
+
+            $gunakanGaji = false;
+            if ($tmtGaji && $tmtPangkat) {
+                $gunakanGaji = $tmtGaji > $tmtPangkat;
+            } elseif ($tmtGaji) {
+                $gunakanGaji = true;
+            }
+
+            $tglAcuanMKG = $gunakanGaji ? $tmtGaji : $tmtPangkat;
+
+            // 3. OVERRIDE NILAI DARI DATABASE DENGAN HASIL HITUNG / DATA TERBARU
+            $pengurusan->masa_kerja_golongan = $pegawai->hitungMasaKerjaSegaris($tglAcuanMKG);
+            $pengurusan->masa_kerja_kgb = $pegawai->hitungMasaKerjaSegaris($pengurusan->tmt_kgb_baru);
+
+            // OVERRIDE TMT KGB LAMA
+            // Jika di database pengurusan masih NULL, tapi di riwayat gaji sudah ada
+            if (!$pengurusan->tmt_kgb_lama && $riwayatKgbTerakhir) {
+                $pengurusan->tmt_kgb_lama = $riwayatKgbTerakhir->tmt_berlaku;
+            }
+            // Jika di database masih NULL dan di tabel pegawai juga NULL, tapi riwayat gaji ada
+            if (!$pengurusan->tmt_gaji_lama && $riwayatGaji) {
+                $pengurusan->tmt_gaji_lama = $riwayatGaji->tmt_berlaku;
+            }
+        }
+
         return view('kgb.show', compact('pengurusan'));
     }
 
@@ -93,33 +128,66 @@ class KgbPengurusanController extends Controller
         $pengurusan = KgbPengurusan::findOrFail($id);
 
         if ($pengurusan->status != 'pending') {
-            return redirect()->route('kgb.index')
-                ->with('error', 'Pengurusan ini sudah diproses atau selesai.');
+            return redirect()->route('kgb.index')->with('error', 'Pengurusan ini sudah diproses atau selesai.');
         }
 
         $pegawai = $pengurusan->pegawai;
 
-        // Hitung masa kerja dari data pegawai
-        $masaKerjaGolongan = $this->hitungMasaKerja($pegawai->tmt_cpns, $pegawai->tmt_pangkat_terakhir);
-        $masaKerjaKGB = $this->hitungMasaKerja($pegawai->tmt_cpns, $pengurusan->tmt_kgb_baru);
+        // =========================================================
+        // 1. TENTUKAN SK TERAKHIR (BANDINGKAN TMT GAJI vs TMT PANGKAT)
+        // =========================================================
+        $riwayatPangkat = $pegawai->riwayatPangkat->first();
+        $riwayatGaji = $pegawai->riwayatGaji->first();
 
-        $gajiLama = $pegawai->gaji_pokok_saat_ini ?? 0;
-        $gajiBaru = $pegawai->gaji_pokok_baru ?? 0;
-        $tmtCpns = $pegawai->tmt_cpns;
-        $tmtKgbBerikutnya = $pegawai->tmt_kgb_berikutnya;
+        $tmtPangkat = $pegawai->tmt_pangkat_terakhir;
+        $tmtGaji = $pegawai->tmt_gaji_terakhir ?? ($riwayatGaji ? $riwayatGaji->tmt_berlaku : null);
 
-        $riwayatPangkatTerakhir = $pegawai->riwayatPangkat->first();
+        $gunakanGaji = false;
+        if ($tmtGaji && $tmtPangkat) {
+            $gunakanGaji = $tmtGaji > $tmtPangkat; // Jika Gaji lebih baru dari Pangkat
+        } elseif ($tmtGaji) {
+            $gunakanGaji = true;
+        }
+
+        if ($gunakanGaji && $riwayatGaji) {
+            // Pakai Data SK Gaji/KGB Terakhir
+            $skTerakhir = [
+                'nomor' => $riwayatGaji->nomor_sk,
+                'tanggal' => $riwayatGaji->tanggal_sk,
+                'pejabat' => $riwayatGaji->pejabat_penetap,
+                'tmt' => $riwayatGaji->tmt_berlaku,
+            ];
+            $tglAcuanMKG = $riwayatGaji->tmt_berlaku;
+        } else {
+            // Pakai Data SK Pangkat Terakhir
+            $skTerakhir = [
+                'nomor' => $riwayatPangkat->nomor_sk ?? '-',
+                'tanggal' => $riwayatPangkat->tanggal_sk ?? null,
+                'pejabat' => $riwayatPangkat->pejabat_penetap ?? '-',
+                'tmt' => $riwayatPangkat->tmt_mulai ?? null,
+            ];
+            $tglAcuanMKG = $pegawai->tmt_pangkat_terakhir;
+        }
+
+        // =========================================================
+        // 2. HITUNG MASA KERJA (Berdasarkan TMT Acuan Terbaru)
+        // =========================================================
+        // Poin e: Hitung MKG s.d TMT SK Terakhir
+        $masaKerjaGolongan = $pegawai->hitungMasaKerjaSegaris($tglAcuanMKG);
+
+        // Poin 7: Hitung MKS s.d TMT KGB Baru
+        $masaKerjaKGB = $pegawai->hitungMasaKerjaSegaris($pengurusan->tmt_kgb_baru);
 
         $data = [
             'pengurusan' => $pengurusan,
             'pegawai' => $pegawai,
-            'gaji_lama' => $gajiLama,
-            'gaji_baru' => $gajiBaru,
-            'tmt_cpns' => $tmtCpns,
+            'gaji_lama' => $pegawai->gaji_pokok_saat_ini ?? 0,
+            'gaji_baru' => $pegawai->gaji_pokok_baru ?? 0,
+            'tmt_cpns' => $pegawai->tmt_cpns,
             'masa_kerja_golongan' => $masaKerjaGolongan,
             'masa_kerja_kgb' => $masaKerjaKGB,
-            'tmt_kgb_berikutnya' => $tmtKgbBerikutnya,
-            'riwayat_pangkat' => $riwayatPangkatTerakhir,
+            'tmt_kgb_berikutnya' => $pegawai->tmt_kgb_berikutnya,
+            'sk_terakhir' => $skTerakhir, // Kirim variabel ini ke View
             'nomor_sk_saran' => $this->generateNomorSk($pengurusan),
             'pejabat_default' => 'Kepala Badan Pusat Statistik',
         ];
@@ -156,8 +224,8 @@ class KgbPengurusanController extends Controller
             $dataLama = $pegawai->toArray();
 
             // Hitung masa kerja dari data pegawai
-            $masaKerjaGolongan = $this->hitungMasaKerja($pegawai->tmt_cpns, $pegawai->tmt_pangkat_terakhir);
-            $masaKerjaKGB = $this->hitungMasaKerja($pegawai->tmt_cpns, $pengurusan->tmt_kgb_baru);
+            $masaKerjaGolongan = $pegawai->hitungMasaKerjaSegaris($pegawai->tmt_pangkat_terakhir);
+            $masaKerjaKGB = $pegawai->hitungMasaKerjaSegaris($pengurusan->tmt_kgb_baru);
 
             // Update pegawai
             $pegawai->tmt_kgb_terakhir = $pengurusan->tmt_kgb_baru;
@@ -186,13 +254,20 @@ class KgbPengurusanController extends Controller
                 'nip_pejabat' => $request->nip_pejabat,
                 'gaji_pokok_lama' => $request->gaji_pokok_lama,
                 'gaji_pokok_baru' => $request->gaji_pokok_baru,
-                'masa_kerja_golongan' => $masaKerjaGolongan,
-                'masa_kerja_kgb' => $masaKerjaKGB,
+                'masa_kerja_golongan' => $request->masa_kerja_golongan, // Ambil dari form
+                'masa_kerja_kgb' => $request->masa_kerja_kgb, // Ambil dari form
                 'dasar_peraturan' => $request->dasar_peraturan,
                 'tmt_gaji_baru' => $pengurusan->tmt_gaji_baru,
                 'tanggal_selesai' => Carbon::now(),
                 'diproses_oleh' => Auth::id(),
-                'keterangan' => 'SK KGB selesai diproses'
+                'keterangan' => 'SK KGB selesai diproses',
+
+
+                'sk_pangkat_nomor' => $request->sk_pangkat_nomor,
+                'sk_pangkat_tanggal' => $request->sk_pangkat_tanggal,
+                'sk_pangkat_pejabat' => $request->sk_pangkat_pejabat,
+                'sk_pangkat_tmt_gaji' => $request->sk_pangkat_tmt_gaji,
+                'sk_pangkat_masa_kerja' => $request->sk_pangkat_masa_kerja,
             ]);
 
             // Log
@@ -228,7 +303,7 @@ class KgbPengurusanController extends Controller
         }
 
         $templatePath = storage_path('app/templates/template_sk_kgb.docx');
-        
+
         if (!file_exists($templatePath)) {
             return back()->with('error', 'Template SK KGB tidak ditemukan! Letakkan di storage/app/templates/template_sk_kgb.docx');
         }
@@ -267,7 +342,7 @@ class KgbPengurusanController extends Controller
         // Nama file
         $fileName = "sk_kgb_" . strtolower(str_replace(' ', '_', $pengurusan->nama)) . "_" . date('Y') . ".docx";
         $tempPath = storage_path("app/temp/{$fileName}");
-        
+
         if (!is_dir(storage_path('app/temp'))) {
             mkdir(storage_path('app/temp'), 0777, true);
         }
@@ -417,45 +492,36 @@ class KgbPengurusanController extends Controller
 
         return "{$tanggal}{$bulan}{$tahun}/{$kodeInstansi}/KPG-{$urutan} Tahun {$tahun}";
     }
-
-    /**
-     * Hitung selisih masa kerja dalam format "X Tahun Y Bulan"
-     */
-    protected function hitungMasaKerja($tmtAwal, $tmtAkhir)
-    {
-        if (!$tmtAwal || !$tmtAkhir) {
-            return '0 Tahun 0 Bulan';
-        }
-        
-        $diff = Carbon::parse($tmtAwal)->diff(Carbon::parse($tmtAkhir));
-        return $diff->y . ' Tahun ' . $diff->m . ' Bulan';
-    }
-
     /**
      * Generate isi SK KGB untuk template
      */
     protected function generateSkContent($pengurusan)
     {
-        // Ambil pegawai dari relasi
-        $pegawai = $pengurusan->pegawai;
+        $bulanIndo = [
+            1 => 'Januari',
+            2 => 'Februari',
+            3 => 'Maret',
+            4 => 'April',
+            5 => 'Mei',
+            6 => 'Juni',
+            7 => 'Juli',
+            8 => 'Agustus',
+            9 => 'September',
+            10 => 'Oktober',
+            11 => 'November',
+            12 => 'Desember'
+        ];
 
-        // Format tanggal
-        $tanggal_naskah = $pengurusan->tanggal_sk ? Carbon::parse($pengurusan->tanggal_sk)->format('d F Y') : '';
-        $tanggal_sk_lama = $pengurusan->sk_pangkat_tanggal ? Carbon::parse($pengurusan->sk_pangkat_tanggal)->format('d F Y') : '';
-        $tmt_gaji_lama = $pengurusan->sk_pangkat_tmt_gaji ? Carbon::parse($pengurusan->sk_pangkat_tmt_gaji)->format('d F Y') : '';
-        $tmt_kgb_baru = $pengurusan->tmt_kgb_baru ? Carbon::parse($pengurusan->tmt_kgb_baru)->format('d F Y') : '';
-        $tmt_kgb_berikutnya = $pengurusan->tmt_kgb_berikutnya ? Carbon::parse($pengurusan->tmt_kgb_berikutnya)->format('d F Y') : '';
-
-        // ============ HITUNG MASA KERJA DARI DATA PEGAWAI ============
-        // Poin e: Masa Kerja Golongan = TMT Pangkat - TMT CPNS
-        $masaKerjaGolongan = $this->hitungMasaKerja($pegawai->tmt_cpns, $pegawai->tmt_pangkat_terakhir);
-        
-        // Poin 7: Masa Kerja KGB = TMT KGB - TMT CPNS
-        $masaKerjaKGB = $this->hitungMasaKerja($pegawai->tmt_cpns, $pengurusan->tmt_kgb_baru);
+        $formatTanggal = function ($tanggal) use ($bulanIndo) {
+            if (!$tanggal)
+                return '';
+            $carbon = Carbon::parse($tanggal);
+            return $carbon->format('d') . ' ' . $bulanIndo[(int) $carbon->format('m')] . ' ' . $carbon->format('Y');
+        };
 
         return [
             'nomor_naskah' => $pengurusan->nomor_sk ?? '',
-            'tanggal_naskah' => $tanggal_naskah,
+            'tanggal_naskah' => $formatTanggal($pengurusan->tanggal_sk),
             'sifat' => 'Penting',
             'hal' => 'Kenaikan Gaji Berkala',
             'nama_pegawai' => $pengurusan->nama,
@@ -463,19 +529,76 @@ class KgbPengurusanController extends Controller
             'pangkat_jabatan' => $pengurusan->pangkat . ' (' . $pengurusan->golongan . ') / ' . $pengurusan->jabatan,
             'instansi' => $pengurusan->instansi,
             'gaji_pokok_lama' => 'Rp ' . number_format($pengurusan->gaji_pokok_lama, 0, ',', '.') . ',-',
-            'pejabat_sk_lama' => $pengurusan->sk_pangkat_pejabat ?? '',
-            'tanggal_sk_lama' => $tanggal_sk_lama,
-            'nomor_sk_lama' => $pengurusan->sk_pangkat_nomor ?? '',
-            'tmt_gaji_lama' => $tmt_gaji_lama,
-            'masa_kerja_golongan' => $masaKerjaGolongan,
+
+            // =======================================================
+            // LANGSUNG AMBIL DARI TABEL PENGURUSAN (Hasil input form)
+            // =======================================================
+            'pejabat_sk_lama' => $pengurusan->sk_pangkat_pejabat ?? '-',
+            'tanggal_sk_lama' => $formatTanggal($pengurusan->sk_pangkat_tanggal),
+            'nomor_sk_lama' => $pengurusan->sk_pangkat_nomor ?? '-',
+            'tmt_gaji_lama' => $formatTanggal($pengurusan->sk_pangkat_tmt_gaji),
+            'masa_kerja_golongan' => $pengurusan->sk_pangkat_masa_kerja ?? '-',
+
             'gaji_pokok_baru' => 'Rp ' . number_format($pengurusan->gaji_pokok_baru, 0, ',', '.') . ',-',
             'dasar_peraturan' => $pengurusan->dasar_peraturan ?? '',
-            'masa_kerja_kgb' => $masaKerjaKGB,
+            'masa_kerja_kgb' => $pengurusan->masa_kerja_kgb ?? '-',
             'golongan' => $pengurusan->golongan,
-            'tmt_kgb_baru' => $tmt_kgb_baru,
-            'tmt_kgb_berikutnya' => $tmt_kgb_berikutnya,
+            'tmt_kgb_baru' => $formatTanggal($pengurusan->tmt_kgb_baru),
+            'tmt_kgb_berikutnya' => $formatTanggal($pengurusan->tmt_kgb_berikutnya),
             'jabatan_pengirim' => $pengurusan->pejabat_penetap ?? '',
             'nama_pengirim' => $pengurusan->pejabat_penetap ?? '',
         ];
+    }
+
+    public function batalProses($id)
+    {
+        $pengurusan = KgbPengurusan::findOrFail($id);
+
+        if ($pengurusan->status != 'selesai') {
+            return back()->with('error', 'Hanya pengurusan yang sudah selesai yang dapat dibatalkan.');
+        }
+
+        DB::transaction(function () use ($pengurusan) {
+            $pegawai = $pengurusan->pegawai;
+
+            // 1. Hapus riwayat gaji yang tercipta dari SK KGB ini
+            KgbRiwayatGaji::where('pegawai_id', $pegawai->id)
+                ->where('nomor_sk', $pengurusan->nomor_sk)
+                ->where('jenis', 'KGB')
+                ->delete();
+
+            // 2. Kembalikan data pegawai ke kondisi sebelum KGB
+            $pegawai->tmt_kgb_terakhir = $pengurusan->tmt_kgb_lama;
+            $pegawai->tmt_gaji_terakhir = $pengurusan->tmt_gaji_lama;
+            $pegawai->gaji_pokok_saat_ini = $pengurusan->gaji_pokok_lama;
+            $pegawai->save();
+
+            // 3. Kembalikan status pengurusan ke pending & kosongkan data SK
+            $pengurusan->update([
+                'status' => 'pending',
+                'nomor_sk' => null,
+                'tanggal_sk' => null,
+                'pejabat_penetap' => null,
+                'nip_pejabat' => null,
+                'tanggal_selesai' => null,
+                'keterangan' => 'Proses dibatalkan, dikembalikan ke pending',
+                'diproses_oleh' => null
+            ]);
+
+            // 4. Log aktivitas
+            KgbLog::create([
+                'pengurusan_sk_kgb_id' => $pengurusan->id,
+                'pegawai_id' => $pegawai->id,
+                'nip' => $pegawai->nip,
+                'nama' => $pegawai->fullname,
+                'aktivitas' => 'batal_proses',
+                'deskripsi' => 'Proses KGB dibatalkan oleh operator',
+                'dilakukan_oleh' => Auth::id(),
+                'ip_address' => request()->ip(),
+                'waktu' => Carbon::now()
+            ]);
+        });
+
+        return back()->with('success', 'Proses KGB berhasil dibatalkan dan dikembalikan ke status Pending.');
     }
 }
